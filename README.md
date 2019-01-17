@@ -3,7 +3,7 @@
 This repository holds all of the files necessary to recreate Suzanne Dufault's 2017 MA thesis for completion of the MA in Biostatistics at the University of California, Berkeley. 
 
 It contains the following subdirectories:   
-* **reports** contains all of the .Rmd files
+* **reports** contains all of the .Rnw files
 * **docs** contains all of the knited .pdf files
 * **graphs** contains any generated graphs 
 
