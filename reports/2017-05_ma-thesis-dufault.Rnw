@@ -83,7 +83,7 @@ d <- read.csv("/Users/suzannedufault/Documents/Berkeley/Research/YoungLivesPaper
 @
 
 <<r global_options, include=FALSE>>=
-knitr::opts_chunk$set(fig.width=7, fig.height=5, fig.path='graphs/',
+knitr::opts_chunk$set(fig.width=7, fig.height=5, fig.path='../graphs/',
                        warning=FALSE, message=FALSE, size = "scriptsize", fig.align = 'c')
 opts_knit$set(self.contained=FALSE)
 @
@@ -129,8 +129,8 @@ Finally, I would like to thank my family. Your unwavering support means everythi
 <<lasso, child='03_lasso.Rnw'>>=
 @
 
-% <<tutorial, child='04_tutorial.Rnw'>>=
-% @
+<<tutorial, child='04_tutorial.Rnw'>>=
+@
 
 <<discussion, child = '05_discussion.Rnw'>>=
 @
