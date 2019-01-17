@@ -1,0 +1,171 @@
+\appendix 
+\section{R Appendix}\label{RAppendix}
+
+\subsection{Package Details (R and STATA)}
+The data used for this tutorial were originally downloaded in STATA-friendly versions from the UK Data Service. Dr. Abhijeet Singh graciously shared the STATA do files necessary to identify the variables of interest from within the extensive YL database and then complete the analyses presented in the original paper. Once the variables of interest had been identified and the results had been successfully recreated, the data were transferred to R to begin the LASSO analysis.
+
+While a package exists in STATA, \texttt{plogit}, for completing LASSO regressions, its documentation is sparse and there are few examples online. Further, because shrinkage in LASSO requires applying a penalty, one generally aims to optimize the penalty according to a particular criterion. In order to do this in STATA, one must use the \texttt{plsearch} package and supply an ascending list of possible penalties, from which the function will choose that which ``best'' minimizes the generalized cross-validation (GCV) quantity, which is commonly expressed as:
+%\footnote{\url{http://www.homepages.ucl.ac.uk/~ucakgam/stata.html}}
+
+\begin{equation}
+GCV = \frac{1}{N}\sum\limits_{i = 1}^{N}\left[\frac{y_i - \hat{f}(x_i)}{1 - \textnormal{trace}(S)/N}\right]^2
+\end{equation}
+
+%\footnote{A recent web search for existing resources and examples running LASSO regressions in STATA returned very little information. Some researchers have built their own .ado functions to run a LASSO regression specific to their question of interest.(\url{http://faculty.chicagobooth.edu/christian.hansen/research/}) In May 2016 a similar question as the one I was concerned with (i.e. running LASSO in STATA for a large number of covariates) was posted on Stack Exchange. Ultimately, the original poster responded to their own post reporting that the author of the STATA \texttt{plogit} package recommended the original poster complete their LASSO work in R. (\url{http://stats.stackexchange.com/questions/211709/plogit-lasso-logistic-regression-with-stata})}
+
+More user friendly, adaptable packages exist in R and were written in co-authorship with the developer of the LASSO method, Tibshirani. The package used in this tutorial is \texttt{glmnet}, though other packages exist, such as \texttt{lars}, that may be also be appropriate. Further, while I describe the code necessary to run the LASSO regressions in this paper, there are many additional options that can be explored in the \texttt{glmnet} documentation. 
+
+\subsection{Final Data Preparation}
+Once basic re-formatting of the data has been taken care of, the following packages are called into R. The following is the code strictly for the CDA outcomes. 
+<<include = FALSE>>=
+setwd("/Users/suzannedufault/Documents/Berkeley/Research/YoungLivesPaper/")
+@
+
+\begin{mdframed}
+<<tidy = TRUE, eval = FALSE>>=
+library(foreign) # For reading csvs
+library(glmnet) # For LASSO regression
+@
+
+<<tidy = TRUE, eval = FALSE>>=
+d <- read.csv("singh-final-data")
+@
+\end{mdframed}
+
+The original least squares regressions were carried out via \texttt{areg} in STATA with site fixed effects. This package was developed to handle a large number of indicator variables, such as cluster identifiers, that were essential to control for but were not of primary interest themselves. By specifying \texttt{absorb} within the regression, STATA handles the sites in the following way:
+\begin{quote}
+\texttt{absorb(varname)} specifies the categorical variable, which is to be
+        included in the regression as if it were specified by dummy
+        variables. 
+\end{quote}
+
+In order to mimic this, I then take the column vector \texttt{clustid} which contained the site identifications from the original data and create dummy variables for each of the twenty sites. To test whether this was an appropriate maneuver, I recreated the original least squares regession results in R with these site indicators in each of the models of interest. In this manner, I was able to recover the original results.
+
+\begin{mdframed}
+<<tidy = TRUE, eval = FALSE>>=
+sites <- data.frame(model.matrix(~ factor(d$clustid) - 1))
+# Rename Variables
+names(sites) <- c("S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10", "S11", "S12", "S13", "S14", "S15", "S16", "S17", "S18", "S19", "S20")
+
+# Merge dummy variables into dataset
+d <- data.frame(d, sites)
+@
+\end{mdframed}
+
+\subsection{LASSO}
+The LASSO portion of the analysis is done in two steps once the potential variables of interest have been identified. First, a cross-validation step allows the user to identify which penalty minimizes the mean cross-validated error (cvm). The largest penalty that produces the mean cross-validated error within one standardard error of the minimum cvm is also returned. This may be a good option in the event researchers are looking for a more restrictive penalty and the subsequent inclusion of fewer non-zero coefficients. 
+
+Selecting the covariates of interest, where each of the variables below correspond to those in the codebook in Table \ref{tab:codebook}:
+
+\begin{mdframed}
+<<tidy = TRUE, eval = FALSE>>=
+cdaData <- subset(d, select = c(hhsize, daded, mumed, agechild, femhead, firstborn, enrol1, enrol2, enrol3, enrol4, traj2, traj3, traj4, traj5, traj6, traj7, traj8, traj9,S2, S3, S4, S5, S6, S7, S8, S9, S10, S11, S12, S13, S14, S15, S16, S17, S18, S19, S20, z_cda_theta_mle))
+## Baselines: enrol5, traj1, S1
+@
+\end{mdframed}
+
+\begin{table}
+\centering
+\begin{threeparttable}
+\begin{tabular}{lll}
+\toprule
+& \textbf{Variable} & \textbf{Description} \\
+\midrule
+\textbf{Outcome} & &\\
+& \texttt{z\_cda\_theta\_mle} & Standardized CDA Scores\\
+& \texttt{z\_ppvt\_theta\_mle} & Standardized PPVT Scores\\
+\textbf{Covariates} & & \\
+&\texttt{hhsize} & Household Size\\
+&\texttt{daded} & Father's Education\\
+&\texttt{mumed} & Mother's Education\\
+&\texttt{agechild} & Age of Child (months)\\
+&\texttt{femhead} & Female-Headed Household\\
+&\texttt{firstborn} & First-Born Child\\
+&\texttt{lnexp} & Log(Real per capita expenditure) \\
+&\texttt{enrol1} & Current Enrollment Status - Public school \\
+&\texttt{enrol2} & Current Enrollment Status - Private school \\
+&\texttt{enrol3} & Current Enrollment Status - Public preschool \\
+&\texttt{enrol4} & Current Enrollment Status - Private preschool \\
+&\texttt{enrol5} & Current Enrollment Status - Not enrolled\tnote{1}  \\
+&\texttt{traj1} & No Preschool or School\tnote{1} \\
+&\texttt{traj2} & Private Preschool Only \\
+&\texttt{traj3} & Public Preschool Only \\
+&\texttt{traj4} & Public Primary School Only \\
+&\texttt{traj5} & Private Primary School Only \\
+&\texttt{traj6} & Private Preschool to Public School \\
+&\texttt{traj7} & Private Preschool to Private School \\
+&\texttt{traj8} & Public Preschool to Public School \\
+&\texttt{traj9} & Public Preschool to Private School \\
+&\texttt{S*} & Site Identifiers \\
+\bottomrule
+\end{tabular}
+\begin{tablenotes}
+{\small \item[1] reference level
+\item[*] all site identifiers have the prefix $S$ followed by an identifying number $k = 1,...,20$.}
+\end{tablenotes}
+\caption{Codebook describing the covariates of interest and outcome variables.} \label{tab:codebook}
+\end{threeparttable}
+\end{table}
+
+
+
+%STATA removes observations with missing values when running regressions. The downside is then if several different regression models are run, with varying missingness across the variables included in the models, only the observations with missing values for those particular covariates will be removed from the sample. This results in varying sample sizes across models. The R package \texttt{glmnet} also relies on complete cases. TO ensure that the regressions completed with LASSO had the same sample sizes, I only included complete casesHowever, as only one model is run, the varying sample size may be less of a concern. 
+
+%\begin{mdframed}
+<<echo = FALSE, eval = FALSE>>=
+cdaData_complete <- cdaData[complete.cases(cdaData),]
+@
+%\end{mdframed}
+
+\subsubsection{Exploratory Model}
+Because \texttt{cv.glmnet}, the cross validation procedure, pseudo-randomly splits the data into 10 folds, I set the seed so that the folds are the same every time. This is done for the sake of reproducibility. Then, I run the cross-validated LASSO in order to find the optimal penalty as well as the largest penalty that still returns a CVM within one standard error of the minimum. Because the covariates were not standardized, the option \texttt{standardize = TRUE} is specified so that the scale of each covariate is not the primary driver of the penalization. Further, because the outcome of CDA scores have been standardized to a Normal(0,1) distribution, including the intercept in the model is irrelevant as it should be equal to the mean, which is zero by definition. By default, \texttt{glmnet} and \texttt{cv.glmnet} will fit the intercept in the model, which is important when the outcome has not been centered. However, when centered, this step is unnecessary. Removing the intercept from the penalization is communicated by \texttt{intercept = FALSE}.
+
+\begin{mdframed}
+<<tidy = TRUE, eval = FALSE>>=
+set.seed(1234324)
+
+# Run cross-validation to find optimal lambda
+cv1 <- cv.glmnet(x = data.matrix(cdaData_complete[,c(1:37)]), 
+                 y = data.matrix(cdaData_complete[,38], standardize = TRUE, intercept =  FALSE) 
+optLambda1se <- cv1$lambda.1se # penalty within 1 s.e.
+optLambda <- cv1$lambda.min # optimal penalty
+@
+\end{mdframed}
+
+The second step is to run the LASSO regression on the entire dataset and apply the penalties found via cross-validation to determine the coefficient estimates.
+\begin{mdframed}
+<<eval = FALSE, tidy = TRUE>>=
+mod1 <- glmnet(x = data.matrix(cdaData_complete[,c(1:37)]), y = data.matrix(cdaData_complete[,38]), family = "gaussian", standardize = TRUE, intercept = FALSE)
+print(coef(mod1, s = c(optLambda, optLambda1se))) # Returns optimal coefficient estimates
+@
+\end{mdframed}
+
+\subsubsection{Model 1: Including the Exposure of Interest (Current Enrollment)}
+To force LASSO to keep certain variables in the model, use the option \texttt{penalty.factor}. The default \texttt{penalty.factor} is one for every covariate. By setting the \texttt{penalty.factor} to zero for the current enrollment variables, LASSO will not shrink these coefficient estimates. 
+\begin{mdframed}
+<<tidy = TRUE, eval = FALSE>>=
+cv1F <- cv.glmnet(x = data.matrix(cdaData_complete[,c(1:37)]), y = data.matrix(cdaData_complete[,38]), standardize = TRUE, intercept =  FALSE, penalty.factor = c(rep(1, 6), rep(0, 4), rep(1, 27))) 
+optLambda1seF <- cv1F$lambda.1se # consider this for shrinking number of coefficients further
+optLambdaF <- cv1F$lambda.min
+
+# Applying the optimal lambda to the full dataset in order to find the corresponding prediction model
+mod1F <- glmnet(x = data.matrix(cdaData_complete[,c(1:37)]), y = data.matrix(cdaData_complete$z_cda_theta_mle), family = "gaussian", standardize = TRUE, intercept = FALSE, penalty.factor = c(rep(1, 6), rep(0, 4), rep(1, 27)))
+print(coef(mod1F, s = c(optLambdaF, optLambda1seF))) # Optimal coefficient estimates
+@
+\end{mdframed}
+
+\subsubsection{Model 2: Including the Exposure of Interest (Trajectory)}
+The same procedure is done for keeping the trajectories in the model. 
+
+\begin{mdframed}
+<<tidy = TRUE, eval = FALSE>>=
+# Run cross-validation to find optimal lambda, keeping intervention in model
+cv2F <- cv.glmnet(x = data.matrix(cdaData_complete[,c(1:37)]), y = data.matrix(cdaData_complete[,38]), standardize = TRUE, intercept =  FALSE, penalty.factor = c(rep(1, 6), rep(0, 4), rep(1, 27))) 
+optLambda1se2F <- cv2F$lambda.1se 
+optLambda2F <- cv2F$lambda.min
+
+mod2F <- glmnet(x = data.matrix(cdaData_complete[,c(1:37)]), y = data.matrix(cdaData_complete[,38]), family = "gaussian", standardize = TRUE, intercept = FALSE, penalty.factor = c(rep(1, 6), rep(0, 4), rep(1, 27)))
+print(coef(mod2F, s = c(optLambda2F, optLambda1se2F))) # Optimal coefficient estimates
+@
+
+\end{mdframed}

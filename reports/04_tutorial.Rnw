@@ -1,0 +1,779 @@
+\section{Application \label{Tutorial}}
+
+One of the hypothesized primary deterrents to the implementation of penalized regression methods reported in Section \ref{YL} was a general lack of training in using R for statistical analyses, which is where most modern statistical packages exist (Walter and Tiermeier 2009). The primary motivation for the remainder of this paper is to present the results of an application of LASSO, including the necessary R code, in comparison to a published journal article that may have been an appropriate candidate for LASSO regression. As LASSO completes variable selection and model building simultaneously, I was interested in how similar the results of the LASSO regression, under varying conditions, would be with those found in the original analysis. Further, given the concern of overfitting with traditional least squares regression, I explore and compare the prediction error of least squares regression with that from the LASSO regression. The presence of LASSO-capable packages in STATA and R are further discussed in the R Appendix.   
+
+<<include = FALSE>>=
+setwd("/Users/suzannedufault/Documents/Berkeley/Research/YoungLivesPaper/")
+
+library(foreign) # For reading csvs
+library(xtable) # For formatting table output
+library(glmnet) # For LASSO regression
+library(plotmo) # for plot_glmnet
+library(dplyr)
+library(scales)
+library(RColorBrewer)
+myColors <- brewer.pal(9, 'Set1')
+
+d <- read.csv("singh-final-data")
+
+sites <- data.frame(model.matrix(~ factor(d$clustid) - 1))
+# Rename Variables
+names(sites) <- c("S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10", "S11", "S12", "S13", "S14", "S15", "S16", "S17", "S18", "S19", "S20")
+
+# Merge dummy variables into dataset
+d <- data.frame(d, sites)
+
+cdaData <- subset(d, select = c(hhsize, daded, mumed, agechild, wi, caste2, caste3, caste4, male, urban, femhead, firstborn, tercile2, tercile3, lnexp, enrol1, enrol2, enrol3, enrol4, some_private, all_public,traj2, traj3, traj4, traj5, traj6, traj7, traj8, traj9, bin.drought, bin.presch, bin.hasstrt, prescdurLess.than.6.months,prescdur6.to.12.months, prescdurMore.than.one.year, prescdurStill.attending, S2, S3, S4, S5, S6, S7, S8, S9, S10, S11, S12, S13, S14, S15, S16, S17, S18, S19, S20, z_cda_theta_mle))
+## Baselines: caste1, tercile1, enrol5, traj1, prescdurMissing, S1, prescdurNK, prescdurRefused.to.answer, prescdurN.A
+cdaDataMod <- cdaData[!is.na(cdaData$z_cda_theta_mle),] # for sample size
+cdaData_complete <- cdaData[complete.cases(cdaData[,c(1:4,11:12,16:19,22:29,37:55)]),]
+
+set.seed(1234324)
+
+################## CDA ######################
+
+### Exploratory Model Not Full ###
+cv11 <- cv.glmnet(x = data.matrix(cbind(cdaData[,c(16:19, 22:29)], sites[,2:20], cdaData[,c(1:4, 11, 12)])), y = cdaData$z_cda_theta_mle, standardize = TRUE, intercept = FALSE) 
+optLambda11se <- cv11$lambda.1se # penalty within 1 s.e.
+optLambda11 <- cv11$lambda.min # optimal penalty
+mod11 <- glmnet(x = data.matrix(cbind(cdaData[,c(16:19, 22:29)], sites[,2:20], cdaData[,c(1:4, 11, 12)])), y = cdaData$z_cda_theta_mle, standardize = TRUE, intercept = FALSE, family = 'gaussian')
+
+### Exploratory Model (FULL)###
+#cv1 <- cv.glmnet(x = data.matrix(cdaData_complete[,c(1:55)]), y = data.matrix(cdaData_complete[,56]), standardize = TRUE, intercept =  FALSE) 
+#optLambda1se <- cv1$lambda.1se # penalty within 1 s.e.
+#optLambda <- cv1$lambda.min # optimal penalty
+#mod1 <- glmnet(x = data.matrix(cdaData_complete[,c(1:55)]), y = data.matrix(cdaData_complete[,56]), family = "gaussian", standardize = TRUE, intercept = FALSE)
+#SS1 <- sum((cdaData$z_cda_theta_mle - predict(mod1, data.matrix(cdaData[,1:55]), s = optLambda1se))^2)
+
+### Extended Model 2 ###
+#cv1F <- cv.glmnet(x = data.matrix(cdaData_complete[,c(1:55)]), y = data.matrix(cdaData_complete[,56]), standardize = TRUE, intercept =  FALSE, penalty.factor = c(rep(1, 15), rep(0, 4), rep(1, 36))) 
+#optLambda1seF <- cv1F$lambda.1se 
+#optLambdaF <- cv1F$lambda.min
+#mod1F <- glmnet(x = data.matrix(cdaData_complete[,c(1:55)]), y = data.matrix(cdaData_complete[,56]), family = "gaussian", standardize = TRUE, intercept = FALSE, penalty.factor = c(rep(1, 15), rep(0, 4), rep(1, 36)))
+#SS1F <- sum((cdaData$z_cda_theta_mle - predict(mod1F, data.matrix(cdaData[,1:55]), s = optLambda1seF))^2)
+#SS1Fopt <- sum((cdaData$z_cda_theta_mle - predict(mod1F, data.matrix(cdaData[,1:55]), s = optLambdaF))^2)
+
+### Exact Model 2 ###
+cv1NF <- cv.glmnet(x = data.matrix(cbind(cdaData[,16:19], sites[,2:20], cdaData[,c(1:4, 11, 12)])), y = cdaData$z_cda_theta_mle, standardize = TRUE, intercept = FALSE, penalty.factor = c(rep(0,4), rep(1,25)))
+optLambda1seNF <- cv1NF$lambda.1se
+optLambdaNF <- cv1NF$lambda.min
+mod1NF <- glmnet(x = data.matrix(cbind(cdaData[,16:19], sites[,2:20], cdaData[,c(1:4, 11, 12)])), y = cdaData$z_cda_theta_mle, standardize = TRUE, intercept = FALSE, penalty.factor = c(rep(0,4), rep(1,25)), family = "gaussian")
+
+### Extended Model 2 (trajectory) ###
+#cv2F <- cv.glmnet(x = data.matrix(cdaData_complete[,c(1:55)]), y = data.matrix(cdaData_complete[,56]), standardize = TRUE, intercept =  FALSE, penalty.factor = c(rep(1, 21), rep(0, 8), rep(1, 26))) 
+#optLambda1se2F <- cv2F$lambda.1se 
+#optLambda2F <- cv2F$lambda.min
+#mod2F <- glmnet(x = data.matrix(cdaData_complete[,c(1:55)]), y = data.matrix(cdaData_complete[,56]), family = "gaussian", standardize = TRUE, intercept = FALSE, penalty.factor = c(rep(1, 21), rep(0, 8), rep(1, 26)))
+#SS2F <- sum((cdaData$z_cda_theta_mle - predict(mod2F, data.matrix(cdaData[,1:55]), s = optLambda1se2F))^2)
+
+### Exact Model 2 (trajectory) ###
+cv2NF <- cv.glmnet(x = data.matrix(cbind(cdaData[,22:29], sites[,2:20], cdaData[,c(1:4, 11, 12)])), y = cdaData$z_cda_theta_mle, standardize = TRUE, intercept = FALSE, penalty.factor = c(rep(0,8), rep(1,25)))
+optLambda1se2NF <- cv2NF$lambda.1se
+optLambda2NF <- cv2NF$lambda.min
+mod2NF <- glmnet(x = data.matrix(cbind(cdaData[,22:29], sites[,2:20], cdaData[,c(1:4, 11, 12)])), y = cdaData$z_cda_theta_mle, standardize = TRUE, intercept = FALSE, penalty.factor = c(rep(0,8), rep(1,25)), family = "gaussian")
+
+
+####################################
+######## LASSO ON PPVT #############
+####################################
+ppvtData <- subset(d, select = c(hhsize, daded, mumed, agechild, wi, caste2, caste3, caste4, male, urban, femhead, firstborn, tercile2, tercile3, lnexp, enrol1, enrol2, enrol3, enrol4, some_private, all_public,traj2, traj3, traj4, traj5, traj6, traj7, traj8, traj9, bin.drought, bin.presch, bin.hasstrt, prescdurLess.than.6.months,prescdur6.to.12.months, prescdurMore.than.one.year, prescdurStill.attending,S2, S3, S4, S5, S6, S7, S8, S9, S10, S11, S12, S13, S14, S15, S16, S17, S18, S19, S20, z_ppvt_theta_mle))
+ppvtData_complete <- ppvtData[complete.cases(ppvtData[,c(1:4,11:12,16:19,22:29,37:56)]),]
+ppvtDataMod <- ppvtData[!is.na(ppvtData$z_ppvt_theta_mle),] # for sample size
+set.seed(1234324)
+
+### Exploratory Model (FULL)###
+#cv2 <- cv.glmnet(x = data.matrix(ppvtData_complete[,c(1:55)]), y = data.matrix(ppvtData_complete[,56]), standardize = TRUE, intercept = FALSE)
+#optLambda1sep <- cv2$lambda.1se 
+#optLambdap <- cv2$lambda.min
+#mod2 <- glmnet(x = data.matrix(ppvtData_complete[,c(1:55)]), y = data.matrix(ppvtData_complete[,56]), family = "gaussian", standardize = TRUE, intercept = FALSE)
+#SS2 <- sum((ppvtData$z_ppvt_theta_mle - predict(mod2, data.matrix(ppvtData[,1:55]), s = optLambda1sep))^2)
+
+### Exploratory Model (Not FULL) ###
+cv22 <- cv.glmnet(x = data.matrix(cbind(ppvtData_complete[,c(16:19, 22:29)], sites[,2:20][complete.cases(ppvtData[,c(1:4,11:12,16:19,22:29,37:56)]),], ppvtData_complete[,c(1:4, 11, 12)])), y = ppvtData_complete$z_ppvt_theta_mle, standardize = TRUE, intercept = FALSE)
+optLambda12sep <- cv22$lambda.1se 
+optLambda2p <- cv22$lambda.min
+mod22 <- glmnet(x = data.matrix(cbind(ppvtData_complete[,c(16:19, 22:29)], sites[,2:20][complete.cases(ppvtData[,c(1:4,11:12,16:19,22:29,37:56)]),], ppvtData_complete[,c(1:4, 11, 12)])), y = ppvtData_complete$z_ppvt_theta_mle, family = "gaussian", standardize = TRUE, intercept = FALSE)
+SS22 <- sum((ppvtDataMod$z_ppvt_theta_mle - predict(mod22, data.matrix(cbind(ppvtDataMod[,c(16:19, 22:29)], sites[,2:20][!is.na(ppvtData$z_ppvt_theta_mle),], ppvtDataMod[,c(1:4, 11, 12)])), s = optLambda12sep))^2)
+SS22opt <- sum((ppvtDataMod$z_ppvt_theta_mle - predict(mod22, data.matrix(cbind(ppvtDataMod[,c(16:19, 22:29)], sites[,2:20][!is.na(ppvtData$z_ppvt_theta_mle),], ppvtDataMod[,c(1:4, 11, 12)])), s = optLambda2p))^2)
+
+### Extended Model 1 ###
+#cv1Fp <- cv.glmnet(x = data.matrix(ppvtData_complete[,c(1:55)]), y = data.matrix(ppvtData_complete[,56]), standardize = TRUE, intercept =  FALSE, penalty.factor = c(rep(1, 15), rep(0, 4), rep(1, 36))) 
+#optLambda1seFp <- cv1Fp$lambda.1se 
+#optLambdaFp <- cv1Fp$lambda.min
+#mod1Fp <- glmnet(x = data.matrix(ppvtData_complete[,c(1:55)]), y = data.matrix(ppvtData_complete[,56]), family = "gaussian", standardize = TRUE, intercept = FALSE, penalty.factor = c(rep(1, 15), rep(0, 4), rep(1, 36)))
+#SS1Fp <- sum((ppvtDataMod$z_ppvt_theta_mle - predict(mod1Fp, data.matrix(ppvtDataMod[,1:55]), s = optLambda1seFp))^2)
+
+### Exact Model 2 ###
+cv1NFp <- cv.glmnet(x = data.matrix(cbind(ppvtData_complete[,16:19], sites[,2:20][!is.na(ppvtData$z_ppvt_theta_mle),], ppvtData_complete[,c(1:4, 11, 12)])), y = ppvtData_complete$z_ppvt_theta_mle, standardize = TRUE, intercept = FALSE, penalty.factor = c(rep(0,4), rep(1,25)))
+optLambda1seNFp <- cv1NFp$lambda.1se
+optLambdaNFp <- cv1NFp$lambda.min
+mod1NFp <- glmnet(x = data.matrix(cbind(ppvtData_complete[,16:19], sites[,2:20][!is.na(ppvtData$z_ppvt_theta_mle),], ppvtData_complete[,c(1:4, 11, 12)])), y = ppvtData_complete$z_ppvt_theta_mle, standardize = TRUE, intercept = FALSE, penalty.factor = c(rep(0,4), rep(1,25)), family = "gaussian")
+SS1NFp <- sum((ppvtDataMod$z_ppvt_theta_mle - predict(mod1NFp, data.matrix(cbind(ppvtDataMod[,16:19], sites[,2:20][!is.na(ppvtData$z_ppvt_theta_mle),], ppvtDataMod[,c(1:4, 11, 12)])), s = optLambda1seNFp))^2)
+SS1NFpopt <- sum((ppvtDataMod$z_ppvt_theta_mle - predict(mod1NFp, data.matrix(cbind(ppvtDataMod[,16:19], sites[,2:20][!is.na(ppvtData$z_ppvt_theta_mle),], ppvtDataMod[,c(1:4, 11, 12)])), s = optLambdaNFp))^2) 
+
+### Extended Model 2 (trajectory) ###
+#cv2pFp <- cv.glmnet(x = data.matrix(ppvtData_complete[,c(1:55)]), y = data.matrix(ppvtData_complete[,56]), standardize = TRUE, intercept =  FALSE, penalty.factor = c(rep(1, 21), rep(0, 8), rep(1, 26))) 
+#optLambda1se2Fp <- cv2pFp$lambda.1se 
+#optLambda2Fp <- cv2pFp$lambda.min
+#mod2Fp <- glmnet(x = data.matrix(ppvtData_complete[,c(1:55)]), y = data.matrix(ppvtData_complete[,56]), family = "gaussian", standardize = TRUE, intercept = FALSE, penalty.factor = c(rep(1, 21), rep(0, 8), rep(1, 26)))
+#SS2Fp <- sum((ppvtDataMod$z_ppvt_theta_mle - predict(mod2Fp, data.matrix(ppvtDataMod[,1:55]), s = optLambda1se2Fp))^2)
+
+### Exact Model 2 (trajectory) ###
+cv2NFp <- cv.glmnet(x = data.matrix(cbind(ppvtData_complete[,22:29], sites[,2:20][!is.na(ppvtData$z_ppvt_theta_mle),], ppvtData_complete[,c(1:4, 11, 12)])), y = ppvtData_complete$z_ppvt_theta_mle, standardize = TRUE, intercept = FALSE, penalty.factor = c(rep(0,8), rep(1,25)))
+optLambda1se2NFp <- cv2NFp$lambda.1se
+optLambda2NFp <- cv2NFp$lambda.min
+mod2NFp <- glmnet(x = data.matrix(cbind(ppvtData_complete[,22:29], sites[,2:20][!is.na(ppvtData$z_ppvt_theta_mle),], ppvtData_complete[,c(1:4, 11, 12)])), y = ppvtData_complete$z_ppvt_theta_mle, standardize = TRUE, intercept = FALSE, penalty.factor = c(rep(0,8), rep(1,25)), family = "gaussian")
+SS2NFp <- sum((ppvtDataMod$z_ppvt_theta_mle - predict(mod2NFp, data.matrix(cbind(ppvtDataMod[,22:29], sites[,2:20][!is.na(ppvtData$z_ppvt_theta_mle),], ppvtDataMod[,c(1:4, 11, 12)])), s = optLambda1se2NFp))^2)
+SS2NFpopt <- sum((ppvtDataMod$z_ppvt_theta_mle - predict(mod2NFp, data.matrix(cbind(ppvtDataMod[,22:29], sites[,2:20][!is.na(ppvtData$z_ppvt_theta_mle),], ppvtDataMod[,c(1:4, 11, 12)])), s = optLambda2NFp))^2)
+@
+
+<<echo = FALSE>>=
+# Recreating from paper (CDA)
+mod1FE <- lm(cdaData$z_cda_theta_mle ~ data.matrix(cdaData[,16:19]) + data.matrix(sites[,2:20]))
+mod1FE.traj <- lm(cdaData$z_cda_theta_mle ~ data.matrix(cdaData[,22:29]) + data.matrix(sites[,2:20]))
+mod2FE <- lm(cdaData$z_cda_theta_mle ~ data.matrix(cdaData[,16:19]) + data.matrix(sites[,2:20]) + data.matrix(cdaData[,c(1:4, 11, 12)]))
+mod2FE.traj <- lm(cdaData$z_cda_theta_mle ~ data.matrix(cdaData[,22:29]) + data.matrix(sites[,2:20]) + data.matrix(cdaData[,c(1:4, 11, 12)]))
+
+
+# Recreating from paper (PPVT)
+mod1FEp <- lm(ppvtData$z_ppvt_theta_mle ~ data.matrix(ppvtData[,16:19]) + data.matrix(sites[,2:20]))
+mod1FEp.traj <- lm(ppvtData$z_ppvt_theta_mle ~ data.matrix(ppvtData[,22:29]) + data.matrix(sites[,2:20]))
+mod2FEp <- lm(ppvtData$z_ppvt_theta_mle ~ data.matrix(ppvtData[,16:19]) + data.matrix(sites[,2:20]) + data.matrix(ppvtData[,c(1:4, 11, 12)]))
+mod2FEp.traj <- lm(ppvtData$z_ppvt_theta_mle ~ data.matrix(ppvtData[,22:29]) + data.matrix(sites[,2:20]) + data.matrix(ppvtData[,c(1:4, 11, 12)]))
+@
+
+\subsection{Original Analysis}
+The paper selected for review and comparison, ``Test Score Gaps Between Private and Government Sector Students at School Entry Age in India'', was published in 2014 regarding test scores and enrollment statuses of children aged 4.5 to 6 years old in India. The objective of the paper was ``not to focus on why students in the private sector outperform those in the government sector but on when.'' (Singh 2014, pp. 32) While many previous studies have examined differences between the public and private sector with respect to children in primary school, the author observed that few had examined the association of public or private preschool attendance and future cognitive development. As such, the journal article hoped to extend the policy conversation to these prime developmental years by incorporating early childhood information into a few association-based least squares regressions. Using the YL dataset, the author found that children who attended private preschools were associated with substantially higher test scores than children who attended public preschools. It was then demonstrated that while much of the performance gap could be removed by controlling for parental background and particular child characteristics, the gap remained significant, warranting further investigation. 
+
+Correspondingly, the original paper considered two least squares regression models. First, an exploratory model of regressing student test scores $Y_i$ on enrollment status $enrol_i$, described by Equation \ref{FEMod1}, controlling for site effects $site_i$. The inclusion of $site_i$ as a control was critical for the differences between sites, as described in the original paper:
+
+\begin{quote}
+Site fixed effects, included here by including a vector of site dummies, allow for removing any levels differences between different sites (mandals). This is particularly important in this case since the take-up of different institution types varies much across the sites in the sample. In effect, these regressions compare children who are in different types of education but living in the same cluster (Singh 2014, pp. 46).
+\end{quote}
+
+\begin{equation} \label{FEMod1}
+Y_i = \alpha + \beta_1 \mathbf{enrol}_i + \beta_2 \mathbf{site}_i + \epsilon _i
+\end{equation}
+
+The second model added to the first a vector $X_i$ of potentially confounding covariates. There was no specification as to how this subset of potential confounding covariates were selected, except that they were intended to capture the socioeconomic background of the children and their families. This model is defined in Equation \ref{FEMod2}.
+
+\begin{equation}\label{FEMod2}
+Y_i = \alpha + \beta_1 \mathbf{enrol}_i + \beta_2 \mathbf{site}_i + \beta_3 X_i + \epsilon _i
+\end{equation}
+
+Enrollment status, $enrol_i$, was further defined and tested in two different ways. First, each of the models were run only considering current enrollment status as the exposure of interest. Then, enrollment status was re-formatted to include the student's enrollment history up to and including their current enrollment status. Each of these possible combinations are outlined in the codebook in Table \ref{tab:codebook}.
+
+\subsection{Candidacy for LASSO}
+
+The objective of the original paper has several qualities that may be difficult to efficiently manage through traditional regression methods. First, this is a high dimensional problem. While there is a large sample size of 1,941 children with complete case information for CDA scores and 1,829 children with complete PPVT information, there are considerably more variables measured in the YL dataset, and at a multitude of hierarchical levels. In this setting (children within school systems within sites), even completing variable selection based on a rigorous causal diagram could become very intricate, with the potential for overadjustment. %, which can lead to biased estimates and losses in precision (\url{https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2744485/}). 
+Additionally, the author was consistenty clear as to the exploratory rather than confirmatory nature of the analysis in the original paper. As such, one may be interested in a multitude of potential covariates rather than a narrow testing subset. Finally, the potential for highly collinear covariates, especially considering the clustering, should be of great concern for the stability of traditional regression estimates. 
+
+Using LASSO, I have two primary goals. First, I want to simplify the model building process. As this is an exploratory investigation, I would like to consider multiple variables while avoiding \textit{ad hoc} inclusion and exclusion of the variables in the model. Of course, in order to stay true to the models presented in the original analysis, I am unable to include and explore the findings of LASSO in a large and unexplored subset of covariates, though I do attempt a version of exploratory analysis in the first model considered, which has known high collinearity. Second, given the concerns about the performance of a least squares estimator in this setting, I hope to produce a less variable estimator of student performance. To complete these goals, I investigate two main questions of interest. First, I build an exploratory model that includes the data-driven strongest predictors of cognitive measures in the YL cohort of children from India. Then, I replicate the Model \ref{FEMod2} efforts by forcing the exposure of interest to remain in the model while allowing LASSO to select which additional covariates to include from those predetermined by the original author. Model \ref{FEMod1} is not explicitly replicated, but can be inferred from the variable trace plots in Figures \ref{fig:traceplot2} and \ref{fig:traceplot3}. % These trace plots are described in Section XXX. 
+In replicating Model \ref{FEMod2} with LASSO, I am prioritizing the inclusion of variables that have a large effect on untangling the signal from the noise in the data. 
+
+%Depending on a researcher's theoretical framework and whether or not they wish to address the interactivity of the many hierarchical levels that influence a child's test performance, one could easily determine a large and unwieldly number of possible covariates for which controlling would be beneficial or enlightening. Closely related is a concern of high collinearity. Many of the identified covariates may be near transformations of other covariates. As previously discussed, this produces near singularity in the matrix estimation of the coefficients which results in highly variable coefficient estimates. Finally, with high collinearity and large numbers of covariates, model covariate selection is critical. One train of thought is to only include covariates that demonstrate high predictive power. In other words, besides our variable of interest, we want each of the additional covariates included in our model to have a large effect on untangling the signal from the noise in the data.
+
+\subsection{LASSO Model}
+
+\subsubsection{Exploratory Model}
+My first exploratory question was of all of the variables of interest specified in the original analysis, what are the strongest predictors of cognitive measures for the YL cohort in India? To this end, I ran a LASSO regression on all variables used in the original models, indescriminant of any presupposed exposure relationship with the outcome of interest. As such, the potential pitfall of this model is that LASSO may not select enrollment, in either formulation, as a significant predictor of the outcome (standardized CDA and PPVT scores). Therefore, any coefficient comparison with the original analysis would be misleading as the models may include different variables.
+
+Including both current enrollment and enrollment trajectory in the model induces a high level of collinearity among the variables included in the model. As can be seen in Figure \ref{fig:corrMatrix}, students who are currently attending a private primary school seem to have trajectories that include public preschools (correlation of 0.61) as well as private preschools (0.54). Conversely, students currently enrolled in public schools very rarely had a private preschool education (0.1) versus a public preschool education (0.84) or no preschool education at all (0.36, not shown). These high correlations between current enrollment status and trajectory may be important for further consideration if the goal is to identify the true support of the LASSO regression. 
+
+<<corrMatrix, echo = FALSE, fig.cap="Map of the correlation between a subset of the variables describing the two measures of enrollment: 1) current enrollment status and 2) enrollment trajectory. It appears that students who are currently in public primary school typically attended a public preschool earlier in life and rarely a private preschool. Conversely, students enrolled in private primary school appear to have a variety of backgrounds, with both public and private preschools displaying a strong correlation.", fig.height = 3>>=
+library(ggcorrplot)
+enrolstats <- data.frame("Public School (Current)" = cdaData$enrol1, "Private School (Current)" = cdaData$enrol2, "Public Preschool (Current)"=cdaData$enrol3, "Private Preschool (Current)" = cdaData$enrol4, "Private Preschool Only (Traj)" = cdaData$traj2, "Public Preschool Only (Traj)" = cdaData$traj3, "Public Primary School Only (Traj)"=cdaData$traj4, "Private Primary School Only (Traj)"=cdaData$traj5, "Private Preschool to Public School (Traj)"=cdaData$traj6, "Private Preschool to Private School (Traj)"=cdaData$traj7, "Public Preschool to Public School (Traj)"=cdaData$traj8, "Public Preschool to Private School (Traj)"=cdaData$traj9)
+cc <- cor(enrolstats)
+
+colnames(cc) <- rownames(cc) <- c("Public School (C)", "Private School (C)", "Public Preschool (C)", "Private Preschool (C)", "Private Preschool (T)", "Public Preschool (T)", "Public School (T)", "Private School (T)", "Private to Public (T)", "Private to Private (T)", "Public to Public (T)", "Public to Private (T)")
+cc[1:8,1:8] <- NA
+cc[3:4,] <- NA
+cc[,3:4] <- NA
+cc[5:12, 5:12] <- NA
+ggcorrplot(cc, hc.order = FALSE, type = "lower", outline.col = "white", lab_size = 4, ggtheme = ggplot2::theme_gray, colors = c("#6D9EC1", "white", "#E46726"), lab = TRUE)
+
+#heatmap.2(cc, trace = "none", labRow = names(enrolstats), dendrogram = "none", margins = c(8,7), srtCol = 45, cexRow = 0.65, cexCol = 0.65, density.info = "none", main = "Correlation Plot: Current Enrollment and Trajectory", keysize = 1)
+@
+
+Moving forward with the analysis, the largest penalty that produces a CVM within one standard deviation of the minimum CVM is applied. Under this penalty, the predictors and coefficients LASSO returned as important when considering CDA scores or PPVT scores as the outcome are presented in Table \ref{ExploreSigns}. A separate column for coefficient signs has been included for ease of comparison. The results for modeling PPVT and CDA scores are included in the same table for clarity of overlap and consistency of coefficient sign. The code used in this and later analyses can be found in the R Appendix.
+
+In all of the models, the baseline educational status was considered to be no school or unreported school status (CDA: n = 130, PPVT: n = 119). Notice, current enrollment in a public preschool or public primary school, as well as the trajectories from private preschool to private primary school and public preschool to private primary school were not returned as nonzero coefficients for either outcome and, therefore, are not included in this table. Since current enrollment in a public preschool consistently has one of the smallest and least significant coefficient estimates across all of the methods and models considered, it is relatively unsurprising that the coefficient under this strict penalty is dropped to zero. However, dropping the coefficient of the private preschool to private primary school trajectory warrants further examination. First, this may be a result of the high correlation between the trajectory and current enrollment status variables. Additionally, the coefficient trace plots produced by LASSO can be invaluable to this end. The trace plots for this model in Figure \ref{fig:traceplot1}, demonstrate that the trajectories of private preschool to private school trajectory (traj7) and public preschool to private primary school (traj9) under the optimal CVM penalty as well as the least squares regression output in (Tables \ref{tab:fin1} and \ref{tab:fin2}) have some of the largest coefficient estimates of any of the covariates included in the models. The restrictive nature of the penalty chosen in the model, while beneficial for inducing sparsity in coefficient estimates, may be obscuring an important relationship in this case.  
+
+<<echo = FALSE>>=
+signs <- sapply(sign(coef(mod11, s = optLambda11se)[which(coef(mod11, s = optLambda11se) != 0)]), function(x) ifelse(x == -1,  "-", "+"))
+signstab1 <- cbind(rownames(coef(mod11, s = optLambda11se))[which(coef(mod11, s = optLambda11se) != 0)], signs, coef(mod11, s = optLambda11se)[which(coef(mod11, s = optLambda11se) != 0)])
+colnames(signstab1) <- c("Covariate", "Coefficient Sign", "Coefficient Estimate")
+
+signs <- sapply(sign(coef(mod22, s = optLambda12sep)[which(coef(mod22, s = optLambda12sep) != 0)]), function(x) ifelse(x == -1,  "-", "+"))
+signstab2 <- cbind(rownames(coef(mod22, optLambda12sep))[which(coef(mod22, optLambda12sep) != 0)], signs, coef(mod22, s = optLambda12sep)[which(coef(mod22, s = optLambda12sep) != 0)])
+colnames(signstab2) <- c("Covariate", "Coefficient Sign", "Coefficient Estimate")
+@
+
+<<exploreTable, echo = FALSE, results = 'asis'>>=
+totsigns <- full_join(data.frame(signstab2), data.frame(signstab1), by = "Covariate")
+totsigns <- totsigns[c(1:6, 21:28),] # non-site coefficients
+names(totsigns) <- c("Covariate", "CDA Coefficient Signs", "CDA Coefficient Estimate", "PPVT Coefficient Signs", "PPVT Coefficient Estimate") 
+#xtable(totsigns,  align = c("l|l||cc|cc"), caption = "A side-by-side comparison of the nonzero coefficients kept by the exploratory LASSO regression when considering CDA scores or PPVT scores as the outcome. Reported are the coefficient estimates when applying the larges penalty that returns a CVM within one standard error of the minimum. See Table XXX for a description of the covariates as well as the baselines for each multilevel variable.", label = "tab:expModelCoefs", row.names = FALSE, digits = 4)
+@
+
+\begin{table}[!h]
+\begin{threeparttable}
+\begin{tabular}{lcccc}
+\toprule
+& \multicolumn{2}{c}{CDA} & \multicolumn{2}{c}{PPVT} \\
+\cmidrule(r){2-3} \cmidrule(r){4-5} 
+Covariate & Signs & Coefficient & Signs & Coefficient \\
+\midrule
+Public Primary School (Current) & +  &  0.0580 & + & 0.0515 \\ 
+Private Primary School (Current) & + & 0.3946 & + & 0.4361 \\ 
+%Private Preschool (Current) & + & 0.2305 & + & 0.2338 \\
+Private Preschool Only$^t$ & + & 0.2305 & + & 0.2338 \\ 
+Public Preschool Only$^t$ & - & -0.1861 &  &  \\ 
+Private Primary School Only$^t$ & + & 0.1264 & + & 0.0724 \\ 
+Private Preschool to Public Primary School$^t$ & + & 0.1905 &  &  \\ 
+Public Preschool to Public Primary School$^t$ & + & 0.0051 & + & 0.1370 \\ 
+%Public Preschool to Private School$^t$ &  &  & + & 0.0172 \\ 
+Household Size & - & -0.0139 & - & -0.0115 \\ 
+Father's Education & + & 0.0216 & + & 0.0201 \\ 
+Mother's Education & + & 0.0514 & + & 0.03978 \\ 
+Child's Age (Months) & - & -0.0033 & - & -0.0030 \\ 
+Female-headed Household & - & -0.2215 & - & -0.1977 \\ 
+\bottomrule
+\end{tabular}
+\begin{tablenotes}
+{\small \item[t] Trajectory variables}
+\end{tablenotes}
+\end{threeparttable}
+\caption{The coefficient estimates and signs of the nonzero coefficients returned by the exploratory LASSO model when CDA and PPVT are used as the respective outcomes of interest. Both models consisted of CDA or PPVT as a function of the two forms of enrollment, household size, father's and mother's education status, the child's age in months, whether the child was the firstborn, and whether the household was headed by a female. While the models for CDA and PPVT may not have included the exact same nonzero coefficients, there is perfect correspondence regarding the positive or negative contribution of each of the shared coefficients with the outcome.}\label{ExploreSigns}
+\end{table}
+
+Looking at the results more generally, there is a positive association between test scores and current private school enrollment or any history of private school education. Further, when parents are well educated, their children appear to score higher on tests, confirming results from existing literature (Davis-Kean 2005). Examination of the coefficient trace plots in Figure \ref{fig:traceplot1} presents a clear majority of these coefficients maintaining a consistent positive or negative association with the test scores, regardless of penalty size. Without further analysis, this exploratory model seems to present similar results as those found by the original paper. As a note, site level effects have not been displayed for any of the models as they were not the primary interest of the original analysis.
+
+<<traceplot1, echo = FALSE, fig.cap = "Trace plot for the coefficient estimates across a range of penalties from least to most restrictive. Both models consisted of CDA or PPVT as a function of the two forms of enrollment, household size, father's and mother's education status, the child's age in months, whether the child was the firstborn, and whether the household was headed by a female. The dotted vertical line represents the penalty at which the CVM was minimized. The dashed vertical line represents the most restrictive penalty that returns a CVM within one standard error of the minimum.", fig.height = 3.5>>=
+par(mfrow = c(1,2), mar = c(5,4,3,2))
+matplot(log(mod11$lambda), t(mod11$beta[c(1:12,32:37),]), type = 'l', col = myColors, xlab = "Log Lambda", ylab = "Coefficients", xlim = c(-11,-1), axes = FALSE, sub = "CDA: Exploratory LASSO", cex.sub = 0.6, cex.lab = 0.75) # , main = "CDA: Exploratory LASSO"
+abline(v = c(log(optLambda11se), log(optLambda11)), lty = c('dashed', 'dotted'), col = alpha('gray', alpha = 0.75))
+axis(1, at = seq(from = -2, to = -9, by = -1), cex.axis = 0.6)
+axis(2, at = seq(-0.75, 1, by = 0.25), cex.axis = 0.6, las = 1)
+ten <- order(abs(mod11$beta[c(1:12,32:37),ncol(mod11$beta)]), decreasing = TRUE)[1:10]
+text(x = rep(-10, 10), y =  mod11$beta[c(1:12,32:37),][ten, ncol(mod11$beta)], rownames(mod11$beta[c(1:12,32:37), ])[ten], cex = 0.5)
+
+matplot(log(mod22$lambda), t(mod22$beta[c(1:12, 32:37),]), type = 'l', col = myColors, xlab = "Log Lambda", ylab = "Coefficients", xlim = c(-11,-1), axes = FALSE, sub = "PPVT: Exploratory LASSO", cex.sub = 0.6, cex.lab = 0.75)
+abline(v = c(log(optLambda12sep), log(optLambda2p)), lty = c('dashed', 'dotted'), col = alpha('gray', alpha = 0.75))
+axis(1, at = seq(from = -2, to = -9, by = -1), cex.axis = 0.6)
+axis(2, at = seq(-0.75, 1, by = 0.25), cex.axis = 0.6, las = 1)
+ten <- order(abs(mod22$beta[c(1:12,32:37),ncol(mod22$beta)]), decreasing = TRUE)[1:10]
+text(x = rep(-10, 10), y =  mod22$beta[c(1:12,32:37),][ten,ncol(mod22$beta)], rownames(mod22$beta[c(1:12,32:37),])[ten], cex = 0.5)
+@
+
+\subsubsection{Comparative Models} 
+While the exploratory analysis provides insight into the associations between the variables of interest and the outcome, it is not comparable to the original analysis. As such, a LASSO model including strictly the covariates specified in Equation \ref{FEMod2} was fit, forcing the regression to keep enrollment status, in its proper formulation, in the model. A first LASSO regression considered the exposure to be enrollment status as represented by current enrollment. Next, a model was fit using the observed trajectory of the students' enrollments as the exposure of interest. 
+
+\begin{table}
+\centering
+\begin{tabular}{lccc}
+\toprule
+\textbf{Coefficient} & \textbf{LS} & \textbf{LASSO (Optimal)} & \textbf{LASSO (1SE)} \\
+\midrule
+Public school & 0.46*** &\Sexpr{round(coef(mod1NF,s=optLambdaNF)[2,1], digits = 3)} & \Sexpr{round(coef(mod1NF,s=optLambda1seNF)[2,1], digits = 3)}\\
+Private school & 0.72*** &\Sexpr{round(coef(mod1NF,s=optLambdaNF)[3,1], digits = 3)} & \Sexpr{round(coef(mod1NF,s=optLambda1seNF)[3,1], digits = 3)}\\
+Public preschool & 0.28*** & \Sexpr{round(coef(mod1NF,s=optLambdaNF)[4,1], digits = 3)} &  \Sexpr{round(coef(mod1NF,s=optLambda1seNF)[4,1], digits = 3)}\\
+Private preschool &  0.53***& \Sexpr{round(coef(mod1NF,s=optLambdaNF)[5,1], digits = 3)} &\Sexpr{round(coef(mod1NF,s=optLambda1seNF)[5,1], digits = 3)}\\
+Household Size & -0.0031 & \Sexpr{round(coef(mod1NF,s=optLambdaNF)[25,1], digits = 3)} &\Sexpr{round(coef(mod1NF,s=optLambda1seNF)[25,1], digits = 3)}\\
+Mother's Education Level & 0.034*** & \Sexpr{round(coef(mod1NF,s=optLambdaNF)[27,1], digits = 3)} & \Sexpr{round(coef(mod1NF,s=optLambda1seNF)[27,1], digits = 3)}\\
+Father's Education Level & 0.023*** & \Sexpr{round(coef(mod1NF,s=optLambdaNF)[26,1], digits =3)} & \Sexpr{round(coef(mod1NF,s=optLambda1seNF)[26,1], digits =3)}\\
+Age in Months & 0.035***& \Sexpr{round(coef(mod1NF,s=optLambdaNF)[28,1], digits = 3)} & \Sexpr{round(coef(mod1NF,s=optLambda1seNF)[28,1], digits = 3)}\\
+Female-headed Household & -0.29***& \Sexpr{round(coef(mod1NF,s=optLambdaNF)[29,1], digits = 3)}& \Sexpr{round(coef(mod1NF,s=optLambda1seNF)[29,1], digits = 3)}\\
+First-born Child & 0.024 & \Sexpr{round(coef(mod1NF,s=optLambdaNF)[30,1], digits = 3)} & \Sexpr{round(coef(mod1NF,s=optLambda1seNF)[30,1], digits = 3)}\\
+Constant & -2.98***& \Sexpr{round(coef(mod1NF,s=optLambdaNF)[1,1], digits = 3)} &\Sexpr{round(coef(mod1NF,s=optLambda1seNF)[1,1], digits = 3)}\\
+\midrule
+Observations & 1941 & \Sexpr{nrow(cdaDataMod)} & \Sexpr{nrow(cdaDataMod)}\\
+\bottomrule
+\end{tabular}
+\caption{Coefficient estimates for the least squares and LASSO models regarding current enrollment status' association with CDA scores and controlling for the covariates listed in the table. Original least squares (LS) results source: \textit{Test Scores Gaps Between Private and Government Sector Students at School Entry Age in Inda}, Singh (2014), pp. 41. \label{tab:coef1}}
+\end{table}
+
+\begin{table}
+\centering
+\begin{tabular}{lccc}
+\toprule
+\textbf{Coefficient} & \textbf{LS} & \textbf{LASSO (Optimal)} & \textbf{LASSO (1SE)} \\
+\midrule
+Public school  & 0.38*** & \Sexpr{round(coef(mod1NFp,s=optLambdaNFp)[2,1], digits = 3)} & \Sexpr{round(coef(mod1NFp,s=optLambda1seNFp)[2,1], digits = 3)}\\
+Private school  & 0.57*** & \Sexpr{round(coef(mod1NFp,s=optLambdaNFp)[3,1], digits = 3)} & \Sexpr{round(coef(mod1NFp,s=optLambda1seNFp)[3,1], digits = 3)}\\
+Public preschool  & 0.16 & \Sexpr{round(coef(mod1NFp,s=optLambdaNFp)[4,1], digits = 3)} & \Sexpr{round(coef(mod1NFp,s=optLambda1seNFp)[4,1], digits = 3)}\\
+Private preschool & 0.43*** &\Sexpr{round(coef(mod1NFp,s=optLambdaNFp)[5,1], digits = 3)} &\Sexpr{round(coef(mod1NFp,s=optLambda1seNFp)[5,1], digits = 3)}\\
+Household Size & -0.0046 & \Sexpr{round(coef(mod1NFp,s=optLambdaNFp)[25,1], digits = 3)}& \Sexpr{round(coef(mod1NFp,s=optLambda1seNFp)[25,1], digits = 3)}\\
+Mother's Education Level & 0.043*** & \Sexpr{round(coef(mod1NFp,s=optLambdaNFp)[27,1], digits = 3)}& \Sexpr{round(coef(mod1NFp,s=optLambda1seNFp)[27,1], digits = 3)}\\
+Father's Education Level & 0.025***& \Sexpr{round(coef(mod1NFp,s=optLambdaNFp)[26,1], digits =3)}& \Sexpr{round(coef(mod1NFp,s=optLambda1seNFp)[26,1], digits =3)}\\
+Age in Months & 0.031*** & \Sexpr{round(coef(mod1NFp,s=optLambdaNFp)[28,1], digits = 3)} & \Sexpr{round(coef(mod1NFp,s=optLambda1seNFp)[28,1], digits = 3)}\\
+Female-headed Household & -0.28** & \Sexpr{round(coef(mod1NFp,s=optLambdaNFp)[29,1], digits = 3)} & \Sexpr{round(coef(mod1NFp,s=optLambda1seNFp)[29,1], digits = 3)}\\
+First-born Child & -0.0098 & \Sexpr{round(coef(mod1NFp,s=optLambdaNFp)[30,1], digits = 3)} & \Sexpr{round(coef(mod1NFp,s=optLambda1seNFp)[30,1], digits = 3)}\\
+Constant & -2.69*** & \Sexpr{round(coef(mod1NFp,s=optLambdaNFp)[1,1], digits = 3)} & \Sexpr{round(coef(mod1NFp,s=optLambda1seNFp)[1,1], digits = 3)}\\
+\midrule
+Observations & 1829 & \Sexpr{nrow(ppvtDataMod)} & \Sexpr{nrow(ppvtDataMod)}\\
+\bottomrule
+\end{tabular}
+\caption{Coefficient estimates for the least squares and LASSO models regarding current enrollment status' association with effects on PPVT scores and controlling for the covariates listed in the table. Original least squares (LS) results source: \textit{Test Scores Gaps Between Private and Government Sector Students at School Entry Age in Inda}, Singh (2014), pp. 41.\label{tab:coef2}}
+\end{table}
+
+Tables \ref{tab:coef1} and \ref{tab:coef2} compare the coefficient estimates reported in the original analysis to the coefficient estimates provided by LASSO for the models considering current enrollment status as the primary exposure of interest on cognitive scores. Results from the LASSO regression when the optimal penalty (that which minimizes the CVM) and the more strict penalty (that which produces results within one standard error of the minimum CVM) are provided. A consistent relationship is observed across all models for a majority of the variables. Larger household sizes and female-headed households appear to be negatively associated with PPVT and CDA test scores. Conversely, enrollment at a private preschool or private primary school continues to have the largest estimated positive association with high test scores. 
+
+The coefficient trace plots for these models are provided in Figures \ref{fig:traceplot2} and \ref{fig:traceplot3}. While forcing the exposure to remain in the model creates a strange shape for the exposure variables, the coefficient estimates again remain mostly stable with respect to their positive or negative association with cognitive scores regardless of penalty size.
+
+<<traceplot2, echo = FALSE, fig.cap = "Trace plots for the coefficient estimates across a range of penalties from least to most restrictive. Both models consisted of CDA or PPVT as a function of current enrollment status, household size, father's and mother's education status, the child's age in months, whether the child was the firstborn, and whether the household was headed by a female. The dotted vertical line represents the penalty at which the CVM was minimized. The dashed vertical line represents the most restrictive penalty that returns a CVM within one standard error of the minimum. Both models considered the exposure of interest to be current enrollment status.", fig.height = 3.5>>=
+par(mfrow = c(1,2))
+matplot(log(mod1NF$lambda), t(mod1NF$beta[c(1:4, 24:29),]), type = 'l', col = myColors, xlab = "Log Lambda", ylab = "Coefficients", xlim = c(-11,-1), axes = FALSE, sub = "CDA Scores versus Current Enrollment", cex.sub = 0.6, cex.lab = 0.75)#, main = "CDA Scores versus Current Enrollment")
+abline(v = c(log(optLambda1seNF), log(optLambdaNF)), lty = c('dashed', 'dotted'), col = alpha('gray', alpha = 0.75))
+axis(1, at = seq(from = -2, to = -9, by = -1), cex.axis = 0.6)
+axis(2, at = seq(-0.75, 1, by = 0.25), cex.axis = 0.6, las = 1)
+ten <- order(abs(mod1NF$beta[c(1:4, 24:29), ncol(mod1NF$beta)]), decreasing = TRUE)[1:10]
+text(x = rep(-10, 10), 
+     y = c(mod1NF$beta[c(1:4,24:29),][ten[c(1:4, 10)],ncol(mod1NF$beta)], 
+           mod1NF$beta[c(1:4,24:29),][ten[c(5)], ncol(mod1NF$beta)] + 0.085,
+           mod1NF$beta[c(1:4,24:29),][ten[c(6)], ncol(mod1NF$beta)] + 0.08, 
+           mod1NF$beta[c(1:4,24:29),][ten[c(7)], ncol(mod1NF$beta)] + 0.05,
+           mod1NF$beta[c(1:4,24:29),][ten[c(8)], ncol(mod1NF$beta)] - 0.04,
+           mod1NF$beta[c(1:4,24:29),][ten[c(9)], ncol(mod1NF$beta)] + 0.025),
+     c(rownames(mod1NF$beta)[c(1:4, 24:29)][ten[c(1:4,10)]], 
+       rownames(mod1NF$beta)[c(1:4, 24:29)][ten[c(5)]],
+       rownames(mod1NF$beta)[c(1:4, 24:29)][ten[c(6)]],
+     rownames(mod1NF$beta)[c(1:4, 24:29)][ten[c(7)]],
+     rownames(mod1NF$beta)[c(1:4, 24:29)][ten[c(8)]],
+     rownames(mod1NF$beta)[c(1:4, 24:29)][ten[c(9)]]),
+     cex = 0.5) #1.1*mod1NF$beta[c(1:4, 24:29)[ten],ncol(mod1NF$beta)]
+
+matplot(log(mod1NFp$lambda), t(mod1NFp$beta[c(1:4, 24:29),]), type = 'l', col = myColors, xlab = "Log Lambda", ylab = "Coefficients", xlim = c(-11,-1), axes = FALSE, sub = "PPVT Scores versus Current Enrollment", cex.sub = 0.6, cex.lab = 0.75)#, main = "PPVT Scores versus Current Enrollment")
+abline(v = c(log(optLambda1seNFp), log(optLambdaNFp)), lty = c('dashed', 'dotted'), col = alpha('gray', alpha = 0.75))
+axis(1, at = seq(from = -2, to = -9, by = -1), cex.axis = 0.6)
+axis(2, at = seq(-0.75, 1, by = 0.25), cex.axis = 0.6, las = 1)
+ten <- order(abs(mod1NFp$beta[c(1:4, 24:29),ncol(mod1NFp$beta)]), decreasing = TRUE)[1:10]
+text(x = rep(-10, 10), 
+     y =  c(mod1NFp$beta[c(1:4,24:29),][ten[c(1:4, 10)],ncol(mod1NFp$beta)], 
+            mod1NFp$beta[c(1:4,24:29),][ten[c(5)], ncol(mod1NFp$beta)] + 0.05,
+           mod1NFp$beta[c(1:4,24:29),][ten[c(6)], ncol(mod1NFp$beta)] + 0.045, 
+           mod1NFp$beta[c(1:4,24:29),][ten[c(7)], ncol(mod1NFp$beta)] + 0.025,
+           mod1NFp$beta[c(1:4,24:29),][ten[c(8)], ncol(mod1NFp$beta)] - 0.07,
+           mod1NFp$beta[c(1:4,24:29),][ten[c(9)], ncol(mod1NFp$beta)] - 0.04), 
+     c(rownames(mod1NFp$beta)[c(1:4, 24:29)][ten[c(1:4,10)]], 
+       rownames(mod1NFp$beta)[c(1:4, 24:29)][ten[c(5)]],
+       rownames(mod1NFp$beta)[c(1:4, 24:29)][ten[c(6)]],
+       rownames(mod1NFp$beta)[c(1:4, 24:29)][ten[c(7)]],
+       rownames(mod1NFp$beta)[c(1:4, 24:29)][ten[c(8)]],
+       rownames(mod1NFp$beta)[c(1:4, 24:29)][ten[c(9)]]), 
+     cex = 0.5) #1.2*mod1NFp$beta[c(1:4, 24:29)[ten],ncol(mod1NFp$beta)]
+@
+
+<<traceplot3, echo = FALSE, fig.cap = "Trace plot for the coefficient estimates across a range of penalties from least to most restrictive. Both models consisted of CDA or PPVT as a function of enrollment trajectory, household size, father's and mother's education status, the child's age in months, whether the child was the firstborn, and whether the household was headed by a female. The dotted vertical line represents the penalty at which the CVM was minimized. The dashed vertical line represents the most restrictive penalty that returns a CVM within one standard error of the minimum. Both models considered the exposure of interest to be the observed enrollment trajectories of the students.", fig.height = 3.5>>=
+par(mfrow = c(1,2))
+matplot(log(mod2NF$lambda), t(mod2NF$beta[c(1:8, 28:33),]), type = 'l', col = myColors, xlab = "Log Lambda", ylab = "Coefficients", xlim = c(-11,-1), axes = FALSE, sub = "CDA Scores versus Enrollment Trajectory", cex.sub = 0.6, cex.lab = 0.75)
+abline(v = c(log(optLambda1se2NF), log(optLambda2NF)), lty = c('dashed', 'dotted'), col = alpha('gray', alpha = 0.75))
+axis(1, at = seq(from = -2, to = -9, by = -1), cex.axis = 0.6)
+axis(2, at = seq(-0.75, 1, by = 0.25), cex.axis = 0.6, las = 1)
+ten <- order(abs(mod2NF$beta[c(1:8, 28:33), ncol(mod2NF$beta)]), decreasing = TRUE)[1:10]
+text(x = rep(-10, 10), 
+     y = c(mod2NF$beta[c(1:8, 28:33)[ten[c(1:5,7:10)]],ncol(mod2NF$beta)],
+           mod2NF$beta[c(1:8, 28:33)[ten[6]],ncol(mod2NF$beta)]+.03), 
+     c(rownames(mod2NF$beta)[c(1:8, 28:33)][ten[c(1:5,7:10)]],
+       rownames(mod2NF$beta)[c(1:8, 28:33)][ten[6]])
+     , cex = 0.5)
+
+matplot(log(mod2NFp$lambda), t(mod2NFp$beta[c(1:8, 28:33),]), type = 'l', col = myColors, xlab = "Log Lambda", ylab = "Coefficients", xlim = c(-11,-1), axes = FALSE, sub = "PPVT Scores versus Enrollment Trajectory", cex.sub = 0.6, cex.lab = 0.75)
+abline(v = c(log(optLambda1se2NFp), log(optLambda2NFp)), lty = c('dashed', 'dotted'), col = alpha('gray', alpha = 0.75))
+axis(1, at = seq(from = -2, to = -9, by = -1), cex.axis = 0.6)
+axis(2, at = seq(-0.75, 1, by = 0.25), cex.axis = 0.6, las = 1)
+ten <- order(abs(mod2NFp$beta[c(1:8, 28:33),ncol(mod2NFp$beta)]), decreasing = TRUE)[1:10]
+text(x = rep(-10, 10), 
+     y = c(mod2NFp$beta[c(1:8, 28:33)[ten[c(1:2,5:10)]],ncol(mod2NFp$beta)],
+           mod2NFp$beta[c(1:8, 28:33)[ten[3]],ncol(mod2NFp$beta)] + 0.05,
+           mod2NFp$beta[c(1:8, 28:33)[ten[4]],ncol(mod2NFp$beta)] + 0.025), 
+     c(rownames(mod2NFp$beta)[c(1:8, 28:33)][ten[c(1:2, 5:10)]], 
+       rownames(mod2NFp$beta)[c(1:8, 28:33)][ten[3]],
+       rownames(mod2NFp$beta)[c(1:8, 28:33)][ten[4]]), 
+     cex = 0.5)
+@
+
+
+This ``near-ness'' of the two methods (traditional least squares and LASSO) is unsurprising given the stability of the coefficient traces in Figures \ref{fig:traceplot2} and \ref{fig:traceplot3} across penalty sizes. As a rather small set of covariates are being considered in these models, large differences in coefficient estimates are unlikely. Even those covariates that are not forced to remain in the model are relatively stable in their size and direction of association with the outcome. In this example the trade-off in estimate bias appears nearly negligible, even when considering stricter penalty sizes. The same results hold when considering trajectory of enrollment as the primary exposure of interest. Again, the LASSO regression produces similar results to those from the least squares regression, as can be seen in Tables \ref{tab:fin1} and \ref{tab:fin2}. 
+
+\begin{table}
+\centering
+\begin{tabular}{lccc}
+\toprule
+\textbf{Coefficient} & \textbf{LS} & \textbf{LASSO (Optimal)} & \textbf{LASSO (1SE)} \\
+\midrule
+Private Preschool Only & 0.85*** & \Sexpr{round(coef(mod2NF,s=optLambda2NF)[2,1], digits = 3)}& \Sexpr{round(coef(mod2NF,s=optLambda1se2NF)[2,1], digits = 3)}\\
+Public Preschool Only & 0.61*** & \Sexpr{round(coef(mod2NF,s=optLambda2NF)[3,1], digits = 3)} & \Sexpr{round(coef(mod2NF,s=optLambda1se2NF)[3,1], digits = 3)}\\
+Public School Only  & 0.61*** & \Sexpr{round(coef(mod2NF,s=optLambda2NF)[4,1], digits = 3)} & \Sexpr{round(coef(mod2NF,s=optLambda1se2NF)[4,1], digits = 3)}\\
+Private School Only  & 1.06*** &\Sexpr{round(coef(mod2NF,s=optLambda2NF)[5,1], digits = 3)} &\Sexpr{round(coef(mod2NF,s=optLambda1se2NF)[5,1], digits = 3)}\\
+Private Preschool to Public School  &0.65** & \Sexpr{round(coef(mod2NF,s=optLambda2NF)[6,1], digits = 3)}& \Sexpr{round(coef(mod2NF,s=optLambda1se2NF)[6,1], digits = 3)}\\
+Private Preschool to Private School  & 0.85*** & \Sexpr{round(coef(mod2NF,s=optLambda2NF)[7,1], digits = 3)} & \Sexpr{round(coef(mod2NF,s=optLambda1se2NF)[7,1], digits = 3)}\\
+Public Preschool to Public School & 0.78*** & \Sexpr{round(coef(mod2NF,s=optLambda2NF)[8,1], digits = 3)} & \Sexpr{round(coef(mod2NF,s=optLambda1se2NF)[8,1], digits = 3)}\\
+Public Preschool to Private School & 1.12*** & \Sexpr{round(coef(mod2NF,s=optLambda2NF)[9,1], digits = 3)} & \Sexpr{round(coef(mod2NF,s=optLambda1se2NF)[9,1], digits = 3)}\\
+Household Size &-0.0024 & \Sexpr{round(coef(mod2NF,s=optLambda2NF)[29,1], digits = 3)} & \Sexpr{round(coef(mod2NF,s=optLambda1se2NF)[29,1], digits = 3)}\\
+Mother's Education Level &0.034*** & \Sexpr{round(coef(mod2NF,s=optLambda2NF)[31,1], digits = 3)} & \Sexpr{round(coef(mod2NF,s=optLambda1se2NF)[31,1], digits = 3)}\\
+Father's Education Level &0.023*** & \Sexpr{round(coef(mod2NF,s=optLambda2NF)[30,1], digits =3)} & \Sexpr{round(coef(mod2NF,s=optLambda1se2NF)[30,1], digits =3)}\\
+Age in Months &0.035*** & \Sexpr{round(coef(mod2NF,s=optLambda2NF)[32,1], digits = 3)} & \Sexpr{round(coef(mod2NF,s=optLambda1se2NF)[32,1], digits = 3)}\\
+Female-headed Household &-0.29*** & \Sexpr{round(coef(mod2NF,s=optLambda2NF)[33,1], digits = 3)} & \Sexpr{round(coef(mod2NF,s=optLambda1se2NF)[33,1], digits = 3)}\\
+First-born Child &0.017 & \Sexpr{round(coef(mod2NF,s=optLambda2NF)[34,1], digits = 3)} & \Sexpr{round(coef(mod2NF,s=optLambda1se2NF)[34,1], digits = 3)}\\
+Constant & -3.27*** & \Sexpr{round(coef(mod2NF,s=optLambda2NF)[1,1], digits = 3)} & \Sexpr{round(coef(mod2NF,s=optLambda1se2NF)[1,1], digits = 3)}\\
+\midrule
+Observations & 1941 & \Sexpr{nrow(cdaDataMod)} & \Sexpr{nrow(cdaDataMod)}\\
+\bottomrule
+\end{tabular}
+\caption{Coefficient estimates for the least squares and LASSO models regarding CDA as the outcome and enrollment trajectory as the exposure of interest and controlling for the covariates listed in the table. Original least squares (LS) sesults source: \textit{Test Scores Gaps Between Private and Government Sector Students at School Entry Age in Inda}, Singh (2014), pp. 42.\label{tab:fin1}}
+\end{table}
+\FloatBarrier
+
+\begin{table}
+\centering
+\begin{tabular}{lccc}
+\toprule
+\textbf{Coefficient}  & \textbf{LS} & \textbf{LASSO (Optimal)} & \textbf{LASSO (1SE)} \\
+\midrule
+Private Preschool Only  & 0.65*** & \Sexpr{round(coef(mod2NFp,s=optLambda2NFp)[2,1], digits = 3)} & \Sexpr{round(coef(mod2NFp,s=optLambda1se2NFp)[2,1], digits = 3)}\\
+Public Preschool Only  & 0.30* & \Sexpr{round(coef(mod2NFp,s=optLambda2NFp)[3,1], digits = 3)} & \Sexpr{round(coef(mod2NFp,s=optLambda1se2NFp)[3,1], digits = 3)}\\
+Public School Only  & 0.47*** & \Sexpr{round(coef(mod2NFp,s=optLambda2NFp)[4,1], digits = 3)} & \Sexpr{round(coef(mod2NFp,s=optLambda1se2NFp)[4,1], digits = 3)}\\
+Private School Only  & 0.79*** &\Sexpr{round(coef(mod2NFp,s=optLambda2NFp)[5,1], digits = 3)} &\Sexpr{round(coef(mod2NFp,s=optLambda1se2NFp)[5,1], digits = 3)}\\
+Private Preschool to Public School  &0.62** & \Sexpr{round(coef(mod2NFp,s=optLambda2NFp)[6,1], digits = 3)} & \Sexpr{round(coef(mod2NFp,s=optLambda1se2NFp)[6,1], digits = 3)}\\
+Private Preschool to Private School  &0.69**** & \Sexpr{round(coef(mod2NFp,s=optLambda2NFp)[7,1], digits = 3)} & \Sexpr{round(coef(mod2NFp,s=optLambda1se2NFp)[7,1], digits = 3)}\\
+Public Preschool to Public School & 0.53*** & \Sexpr{round(coef(mod2NFp,s=optLambda2NFp)[8,1], digits = 3)} & \Sexpr{round(coef(mod2NFp,s=optLambda1se2NFp)[8,1], digits = 3)}\\
+Public Preschool to Private School & 0.80*** & \Sexpr{round(coef(mod2NFp,s=optLambda2NFp)[9,1], digits = 3)} & \Sexpr{round(coef(mod2NFp,s=optLambda1se2NFp)[9,1], digits = 3)}\\
+Household Size &-0.0030 & \Sexpr{round(coef(mod2NFp,s=optLambda2NFp)[29,1], digits = 3)} & \Sexpr{round(coef(mod2NFp,s=optLambda1se2NFp)[29,1], digits = 3)}\\
+Mother's Education Level &0.043*** & \Sexpr{round(coef(mod2NFp,s=optLambda2NFp)[31,1], digits = 3)} & \Sexpr{round(coef(mod2NFp,s=optLambda1se2NFp)[31,1], digits = 3)}\\
+Father's Education Level &0.025*** & \Sexpr{round(coef(mod2NFp,s=optLambda2NFp)[30,1], digits =3)} & \Sexpr{round(coef(mod2NFp,s=optLambda1se2NFp)[30,1], digits =3)}\\
+Age in Months &0.030*** & \Sexpr{round(coef(mod2NFp,s=optLambda2NFp)[32,1], digits = 3)} & \Sexpr{round(coef(mod2NFp,s=optLambda1se2NFp)[32,1], digits = 3)}\\
+Female-headed Household &-0.28** & \Sexpr{round(coef(mod2NFp,s=optLambda2NFp)[33,1], digits = 3)} & \Sexpr{round(coef(mod2NFp,s=optLambda1se2NFp)[33,1], digits = 3)}\\
+First-born Child &-0.019 & \Sexpr{round(coef(mod2NFp,s=optLambda2NFp)[34,1], digits = 3)} & \Sexpr{round(coef(mod2NFp,s=optLambda1se2NFp)[34,1], digits = 3)}\\
+Constant & -2.76*** & \Sexpr{round(coef(mod2NFp,s=optLambda2NFp)[1,1], digits = 3)} & \Sexpr{round(coef(mod2NFp,s=optLambda1se2NFp)[1,1], digits = 3)}\\
+\midrule
+Observations & 1829 & \Sexpr{nrow(ppvtDataMod)} & \Sexpr{nrow(ppvtDataMod)}\\
+\bottomrule
+\end{tabular}
+\caption{Coefficient estimates for the least squares and LASSO models regarding PPVT as the outcome and enrollment trajectory as the exposure of interest and controlling for the covariates listed in the table. Original least squares (LS) results source: \textit{Test Scores Gaps Between Private and Government Sector Students at School Entry Age in Inda}, Singh (2014), pp. 42. \label{tab:fin2}}
+\end{table}
+
+Because the coefficient estimates are rather similar and stable, the changes in estimate should reflect a decrease in the variability of the LASSO estimator. In essence, because LASSO trades bias for variance, it produces an estimator that is more stable and less influenced by outliers or extreme values. Figure \ref{fig:rss} examines this relationship by plotting both the predicted mean squared errors for the least squares model and those for the LASSO models considered. A subset of 80\% of the data was used to fit each model while the remaining 20\% was used to determine the predicted MSE that is shown in the plots. Figure \ref{fig:rss} demonstrates that every model of LASSO outperforms the least squares model. This, as mentioned, is because LASSO takes advantage of the bias-variance tradeoff to minimize the predicted MSE, producing less variable estimates of the outcome and as such, performing better when faced with new data. 
+
+Further, in Figure \ref{fig:rss} LASSO* refers to the exploratory models that contained both the current enrollment status as well as the trajectory of enrollment for each student. As such, this model is guaranteed to contain highly collinear variables. Unlike traditional regression methods, where this would result in highly variable estimates, these models are still among the best performing. This speaks directly to the ease with which LASSO handles collinear data. 
+
+<<extremeValues, echo = FALSE, fig.cap = "Scatter plots with smoothing lines used to examine the variability of the predicted CDA scores via least squares regression and LASSO regression.">>=
+#plot(mod2FE, which = 1)
+#plotres(mod1NF, which = 3)
+
+#plot(mod2FE.traj, which = 1)
+#plotres(mod2NF, which = 3)
+
+#par(mfrow = c(3,1))
+
+#plot(cdaData_complete$z_cda_theta_mle, pch = 16, col = alpha('gray'), main = "Observed CDA Scores", ylab = "Standardized CDA Scores")
+
+#plot(cdaData$z_cda_theta_mle, pch = 16, col = alpha('gray', alpha = 0.3), main = "Residuals for CDA Scores versus Current Enrollment", ylab = "Standardized CDA Score")
+#points(predict(mod2FE), pch = 16, col = alpha(myColors[2], alpha = 0.3))
+#scatter.smooth(predict(mod2FE), col = alpha(myColors[2], alpha = 0.2), ylim = c(-1.5,1.75), ylab = "Predicted CDA Scores", pch = 16, main = "Predicted CDA Scores using LS")
+
+#points(predict(mod1NF, data.matrix(cbind(cdaData[,16:19], sites[,2:20], cdaData[,c(1:4, 11, 12)])), s = optLambda1se2NF), pch = 16, col = alpha(myColors[3], alpha = 0.2))
+#scatter.smooth(predict(mod1NF, data.matrix(cbind(cdaData[,16:19], sites[,2:20], cdaData[,c(1:4, 11, 12)])), s = optLambda1se2NF), pch = 16, col = alpha(myColors[3], alpha = 0.2), ylim = c(-1.5,1.75), ylab = "Predicted CDA Scores", main = "Predicted CDA Scores using LASSO")
+
+#plot(density(predict(mod1NF, data.matrix(cbind(cdaData[,16:19], sites[,2:20], cdaData[,c(1:4, 11,12)])), s = optLambda2NF)), main = NULL, xlim = c(-4,4), col = alpha(myColors[2], alpha = 0.5), sub = "Distribution of CDA Scores", cex.sub = 0.6, cex.lab = 0.75)
+#polygon(density(predict(mod1NF, data.matrix(cbind(cdaData[,16:19], sites[,2:20], cdaData[,c(1:4, 11,12)])), s = optLambda2NF)), col = alpha(myColors[2], alpha = 0.7))
+#lines(density(cdaData$z_cda_theta_mle), col = alpha(myColors[1], alpha = 0.5))
+#polygon(density(cdaData$z_cda_theta_mle), col = alpha(myColors[1], alpha = 0.3))
+#lines(density(predict(mod2FE)), col = alpha(myColors[3], alpha = 0.5))
+#polygon(density(predict(mod2FE)), col = alpha(myColors[3], alpha = 0.3))
+#plot(cdaData$z_cda_theta_mle, pch = 16, col = alpha('gray', alpha = 0.3), main = "Residuals for CDA Scores versus Enrollment Trajectory", ylab = "Standardized CDA Score")
+#points(predict(mod2FE.traj), pch = 16, col = alpha(myColors[2], alpha = 0.3))
+#points(predict(mod2NF, data.matrix(cbind(cdaData[,22:29], sites[,2:20], cdaData[,c(1:4, 11, 12)])), s = optLambda1se2NF), pch = 16, col = alpha(myColors[3], alpha = 0.2))
+
+#plot(ppvtData$z_ppvt_theta_mle, pch = 16, col = alpha('gray', alpha = 0.3), main = "Residuals for CDA Scores versus Enrollment Trajectory", ylab = "Standardized CDA Score")
+#points(predict(mod2FEp.traj, newdata = ppvtData), pch = 16, col = alpha(myColors[2], alpha = 0.3))
+#points(predict(mod2NFp, data.matrix(cbind(ppvtData[,22:29], sites[,2:20], ppvtData[,c(1:4, 11, 12)])), s = optLambda1se2NFp), pch = 16, col = alpha(myColors[3], alpha = 0.2))
+@
+
+
+%\subsubsection{Extension} \FloatBarrier
+
+%Variable selection by LASSO is almost non-existant in the case of the already small and interpretable models presented in the previous subsection. As there are already few covariates, LASSO instead shrinks the coefficient sizes without being forced to set many of the coefficients directly to zero. The next step was then to explore the behavior of LASSO in a setting where a manageable model has not been prespecified. Instead, using all of the covariates of interest specified in the original Stata files, LASSO regressions were once again run considering either the exposure of interest to be current enrollment status or trajectory and forcing these variables to remain in the model.
+
+%The covariates LASSO found as most predictive for CDA and PPVT scores when the enrollment status of the students were forced to stay in the model are represented in Table \ref{tab:pred1F}, while those found as most predictive of PPVT scores are represented in Table \ref{tab:pred2F}\FloatBarrier
+
+%<<echo = FALSE, results = 'asis'>>=
+%signs <- sapply(sign(coef(mod1F, s = optLambda1seF)[which(coef(mod1F, s = optLambda1seF) != 0)]), function(x) ifelse(x == -1,  "-", "+"))
+%signstab <- cbind(colnames(cdaData_complete)[which(coef(mod1F, optLambda1seF) != 0) - 1], signs)
+%colnames(signstab) <- c("Covariate", "Positive or Negative Coefficient")
+%signs <- sapply(sign(coef(mod1Fp, s = optLambda1seFp)[which(coef(mod1Fp, s = optLambda1seFp) != 0)]), function(x) ifelse(x == -1,  "-", "+"))
+%signstab2 <- cbind(colnames(ppvtData_complete)[which(coef(mod1Fp, optLambda1seFp) != 0) - 1], signs)
+%colnames(signstab2) <- c("Covariate", "Positive or Negative Coefficient")
+
+%totsigns <- full_join(data.frame(signstab2), data.frame(signstab), by = "Covariate")
+%totsigns <- totsigns[1:15,] # non-site coefficients
+%names(totsigns)[2:3] <- c("CDA Coefficient Signs", "PPVT Coefficient Signs") 
+%xtable(totsigns,  align = c("l|l||cc"), caption = "A side-by-side comparison of the nonzero coefficients kept by the extended LASSO regression when considering CDA scores or PPVT scores as the outcome and current enrollment as the exposure of interest. Reported are the coefficient estimates when applying the larges penalty that returns a CVM within one standard error of the minimum. See Table XXX for a description of the covariates as well as the baselines for each multilevel variable.", label = "tab:expandedModelCoefs", row.names = FALSE)
+%@
+%\FloatBarrier
+
+% The coefficient comparisons from this model as compared to those from the original paper are presented in Table \ref{tab:gen1} and Table \ref{tab:gen2}
+% \begin{table}
+% \centering
+% \begin{tabular}{|l||c|c|c|}
+% \hline
+% \textbf{Coefficient} & \textbf{FE Model 1} & \textbf{FE Model 2} & \textbf{Lasso (1SE)} \\
+% \hline
+% \hline
+% Public school & 0.56*** & 0.46*** & \Sexpr{round(coef(mod1F,s=optLambda1seF)[17,1], digits = 3)}\\
+% Private school & 1.03*** & 0.72*** & \Sexpr{round(coef(mod1F,s=optLambda1seF)[18,1], digits = 3)}\\
+% Public preschool & 0.25** & 0.28*** & \Sexpr{round(coef(mod1F,s=optLambda1seF)[19,1], digits = 3)}\\
+% Private preschool & 0.78*** & 0.53***&\Sexpr{round(coef(mod1F,s=optLambda1seF)[20,1], digits = 3)}\\
+% Household Size && -0.0031 & \Sexpr{round(coef(mod1F,s=optLambda1seF)[2,1], digits = 3)}\\
+% Mother's Education Level && 0.034*** & \Sexpr{round(coef(mod1F,s=optLambda1seF)[4,1], digits = 3)}\\
+% Father's Education Level && 0.023***& \Sexpr{round(coef(mod1F,s=optLambda1seF)[3,1], digits =3)}\\
+% Age in Months && 0.035***& \Sexpr{round(coef(mod1F,s=optLambda1seF)[5,1], digits = 3)}\\
+% Female-headed Household && -0.29***& \Sexpr{round(coef(mod1F,s=optLambda1seF)[12,1], digits = 3)}\\
+% First-born Child && 0.024 & \Sexpr{round(coef(mod1F,s=optLambda1seF)[13,1], digits = 3)}\\
+% Constant &-0.56*** & -2.98***& \Sexpr{round(coef(mod1F,s=optLambda1seF)[1,1], digits = 3)}\\
+% \hline
+% Observations &1941 & 1941& \Sexpr{nrow(cdaDataMod)}\\
+% \hline
+% \end{tabular}
+% \caption{Comparison of coefficient estimates for the model regarding current enrollment status effects on CDA scores. \label{tab:gen1}}
+% \end{table}
+% 
+% \begin{table}
+% \centering
+% \begin{tabular}{|l||c|c|c|}
+% \hline
+% \textbf{Coefficient} & \textbf{FE Model 1} & \textbf{FE Model 2} & \textbf{Lasso (1SE)} \\
+% \hline
+% \hline
+% Public school & 0.46*** & 0.38*** & \Sexpr{round(coef(mod1Fp,s=optLambda1seFp)[17,1], digits = 3)}\\
+% Private school & 0.93*** & 0.57*** & \Sexpr{round(coef(mod1Fp,s=optLambda1seFp)[18,1], digits = 3)}\\
+% Public preschool & 0.13 & 0.16 & \Sexpr{round(coef(mod1Fp,s=optLambda1seFp)[19,1], digits = 3)}\\
+% Private preschool & 0.74*** & 0.43*** &\Sexpr{round(coef(mod1Fp,s=optLambda1seFp)[20,1], digits = 3)}\\
+% Household Size && -0.0046 & \Sexpr{round(coef(mod1Fp,s=optLambda1seFp)[2,1], digits = 3)}\\
+% Mother's Education Level && 0.043*** & \Sexpr{round(coef(mod1Fp,s=optLambda1seFp)[4,1], digits = 3)}\\
+% Father's Education Level && 0.025***& \Sexpr{round(coef(mod1Fp,s=optLambda1seFp)[3,1], digits =3)}\\
+% Age in Months && 0.031****& \Sexpr{round(coef(mod1Fp,s=optLambda1seFp)[5,1], digits = 3)}\\
+% Female-headed Household && -0.28**& \Sexpr{round(coef(mod1Fp,s=optLambda1seFp)[12,1], digits = 3)}\\
+% First-born Child && -0.0098 & \Sexpr{round(coef(mod1Fp,s=optLambda1seFp)[13,1], digits = 3)}\\
+% Constant &-0.47*** & -2.69***& \Sexpr{round(coef(mod1Fp,s=optLambda1seFp)[1,1], digits = 3)}\\
+% \hline
+% Observations &1,829 & 1,829& \Sexpr{nrow(ppvtDataMod)}\\
+% \hline
+% \end{tabular}
+% \caption{Comparison of coefficient estimates for the model regarding current enrollment status effects on PPVT scores. \label{tab:gen2}}
+% \end{table}
+% \FloatBarrier
+
+%When instead considering the exposure of interest to be the trajectory of a child's enrollment through their current enrollment status, and forcing this variable to stay in the model, LASSO returns the following set of covariates as the most important in terms of prediction. Again, with CDA as the outcome of interest, the results are presented in Table \ref{tab:pred1FF}. When PPVT is the outcome of interest, the results are presented in Table \ref{tab:pred2FF}.
+
+%\FloatBarrier
+%<<echo = FALSE, results = 'asis'>>=
+%signs <- sapply(sign(coef(mod2F, s = optLambda1se2F)[which(coef(mod2F, s = optLambda1se2F) != 0)]), function(x) ifelse(x == -1,  "-", "+"))
+%signstab <- cbind(colnames(cdaData_complete)[which(coef(mod2F, optLambda1se2F) != 0) - 1], signs)
+%colnames(signstab) <- c("Covariate", "Positive or Negative Coefficient")
+
+%signs <- sapply(sign(coef(mod2Fp, s = optLambda1se2Fp)[which(coef(mod2Fp, s = optLambda1se2Fp) != 0)]), function(x) ifelse(x == -1,  "-", "+"))
+%signstab2 <- cbind(colnames(ppvtData_complete)[which(coef(mod2Fp, optLambda1se2Fp) != 0) - 1], signs)
+%colnames(signstab2) <- c("Covariate", "Positive or Negative Coefficient")
+
+%totsigns <- full_join(data.frame(signstab2), data.frame(signstab), by = "Covariate")
+%totsigns <- totsigns[1:15,] # non-site coefficients
+%names(totsigns)[2:3] <- c("CDA Coefficient Signs", "PPVT Coefficient Signs") 
+%xtable(totsigns,  align = c("l|l||cc"), caption = "A side-by-side comparison of the nonzero coefficients kept by the extended LASSO regression when considering CDA scores or PPVT scores as the outcome and trajectory as the exposure of interest. Reported are the coefficient estimates when applying the larges penalty that returns a CVM within one standard error of the minimum. See Table XXX for a description of the covariates as well as the baselines for each multilevel variable.", label = "tab:expandedModelCoefs2", row.names = FALSE)
+%@
+%\FloatBarrier
+
+%The coefficient estimate comparison to those found in the original paper for CDA as the outcome and the trajectory of enrollment through current enrollment status can be found in Table \ref{tab:fin1}. The coefficient estimate comparison to those found in the original paper for PPVT as the outcome can be found in Table \ref{tab:fin2}. \FloatBarrier
+
+
+% 
+% \begin{table}
+% \centering
+% \begin{tabular}{|l||c|c|c|}
+% \hline
+% \textbf{Coefficient} & \textbf{FE Model 1} & \textbf{FE Model 2} & \textbf{Lasso (1SE)} \\
+% \hline
+% \hline
+% Private Preschool Only & 1.15*** & 0.85*** & \Sexpr{round(coef(mod2F,s=optLambda1se2F)[23,1], digits = 3)}\\
+% Public Preschool Only &0.62*** & 0.61*** & \Sexpr{round(coef(mod2F,s=optLambda1se2F)[24,1], digits = 3)}\\
+% Public School Only & 0.71*** & 0.61*** & \Sexpr{round(coef(mod2F,s=optLambda1se2F)[25,1], digits = 3)}\\
+% Private School Only & 1.33*** & 1.06***&\Sexpr{round(coef(mod2F,s=optLambda1se2F)[26,1], digits = 3)}\\
+% Private Preschool to Public School &0.80*** &0.65**& \Sexpr{round(coef(mod2F,s=optLambda1se2F)[27,1], digits = 3)}\\
+% Private Preschool to Private School &1.26*** & 0.85***& \Sexpr{round(coef(mod2F,s=optLambda1se2F)[28,1], digits = 3)}\\
+% Public Preschool to Public School &0.90***& 0.78***& \Sexpr{round(coef(mod2F,s=optLambda1se2F)[29,1], digits = 3)}\\
+% Public Preschool to Private School &1.38***& 1.12***& \Sexpr{round(coef(mod2F,s=optLambda1se2F)[30,1], digits = 3)}\\
+% Household Size &&-0.0024 & \Sexpr{round(coef(mod2F,s=optLambda1se2F)[2,1], digits = 3)}\\
+% Mother's Education Level &&0.034*** & \Sexpr{round(coef(mod2F,s=optLambda1se2F)[4,1], digits = 3)}\\
+% Father's Education Level &&0.023***& \Sexpr{round(coef(mod2F,s=optLambda1se2F)[3,1], digits =3)}\\
+% Age in Months &&0.035***& \Sexpr{round(coef(mod2F,s=optLambda1se2F)[5,1], digits = 3)}\\
+% Female-headed Household &&-0.29***& \Sexpr{round(coef(mod2F,s=optLambda1se2F)[12,1], digits = 3)}\\
+% First-born Child &&0.017& \Sexpr{round(coef(mod2F,s=optLambda1se2F)[13,1], digits = 3)}\\
+% Constant &-0.87*** & -3.27***& \Sexpr{round(coef(mod2F,s=optLambda1se2F)[1,1], digits = 3)}\\
+% \hline
+% Observations &1941 & 1941& \Sexpr{nrow(cdaDataMod)}\\
+% \hline
+% \end{tabular}
+% \caption{Coefficient estimates from Model 3 compared to those from the original paper when CDA is the outcome of interest. \label{tab:fin1}}
+% \end{table}
+% \FloatBarrier
+% 
+% \begin{table}
+% \centering
+% \begin{tabular}{|l||c|c|c|}
+% \hline
+% \textbf{Coefficient} & \textbf{FE Model 1} & \textbf{FE Model 2} & \textbf{Lasso (1SE)} \\
+% \hline
+% \hline
+% Private Preschool Only & 1.01*** & 0.65*** & \Sexpr{round(coef(mod2Fp,s=optLambda1se2Fp)[23,1], digits = 3)}\\
+% Public Preschool Only &0.62*** & 0.61*** & \Sexpr{round(coef(mod2Fp,s=optLambda1se2Fp)[24,1], digits = 3)}\\
+% Public School Only & 0.71*** & 0.61*** & \Sexpr{round(coef(mod2Fp,s=optLambda1se2Fp)[25,1], digits = 3)}\\
+% Private School Only & 1.33*** & 1.06***&\Sexpr{round(coef(mod2Fp,s=optLambda1se2Fp)[26,1], digits = 3)}\\
+% Private Preschool to Public School &0.80*** &0.65**& \Sexpr{round(coef(mod2Fp,s=optLambda1se2Fp)[27,1], digits = 3)}\\
+% Private Preschool to Private School &1.26*** & 0.85***& \Sexpr{round(coef(mod2Fp,s=optLambda1se2Fp)[28,1], digits = 3)}\\
+% Public Preschool to Public School &0.90***& 0.78***& \Sexpr{round(coef(mod2Fp,s=optLambda1se2Fp)[29,1], digits = 3)}\\
+% Public Preschool to Private School &1.38***& 1.12***& \Sexpr{round(coef(mod2Fp,s=optLambda1se2Fp)[30,1], digits = 3)}\\
+% Household Size &&-0.0024 & \Sexpr{round(coef(mod2Fp,s=optLambda1se2Fp)[2,1], digits = 3)}\\
+% Mother's Education Level &&0.034*** & \Sexpr{round(coef(mod2Fp,s=optLambda1se2Fp)[4,1], digits = 3)}\\
+% Father's Education Level &&0.023***& \Sexpr{round(coef(mod2Fp,s=optLambda1se2Fp)[3,1], digits =3)}\\
+% Age in Months &&0.035***& \Sexpr{round(coef(mod2Fp,s=optLambda1se2Fp)[5,1], digits = 3)}\\
+% Female-headed Household &&-0.29***& \Sexpr{round(coef(mod2Fp,s=optLambda1se2Fp)[12,1], digits = 3)}\\
+% First-born Child &&0.017& \Sexpr{round(coef(mod2Fp,s=optLambda1se2Fp)[13,1], digits = 3)}\\
+% Constant &-0.87*** & -3.27***& \Sexpr{round(coef(mod2Fp,s=optLambda1se2Fp)[1,1], digits = 3)}\\
+% \hline
+% Observations &1941 & 1941& \Sexpr{nrow(ppvtData)}\\
+% \hline
+% \end{tabular}
+% \caption{Coefficient estimates from Model 3 compared to those from the original paper when PPVT is the outcome of interest. \label{tab:fin2}}
+% \end{table}
+% \FloatBarrier
+
+<<MSE, echo = FALSE, eval = FALSE>>=
+# 
+# 
+# SS11 <- sum((cdaData$z_cda_theta_mle - predict(mod11, data.matrix(cbind(cdaData[,c(16:19, 22:29)], sites[,2:20], cdaData[,c(1:4, 11, 12)])), s = optLambda11se))^2)
+# SS11opt <- sum((cdaData$z_cda_theta_mle - predict(mod11, data.matrix(cbind(cdaData[,c(16:19, 22:29)], sites[,2:20], cdaData[,c(1:4, 11, 12)])), s = optLambda11))^2)
+# SS1NF <- sum((cdaData$z_cda_theta_mle - predict(mod1NF, data.matrix(cbind(cdaData[,16:19], sites[,2:20], cdaData[,c(1:4, 11, 12)])), s = optLambda1seNF))^2)
+# SS1NFopt <- sum((cdaData$z_cda_theta_mle - predict(mod1NF, data.matrix(cbind(cdaData[,16:19], sites[,2:20], cdaData[,c(1:4, 11, 12)])), s = optLambdaNF))^2)
+# SS2NF <- sum((cdaData$z_cda_theta_mle - predict(mod2NF, data.matrix(cbind(cdaData[,22:29], sites[,2:20], cdaData[,c(1:4, 11, 12)])), s = optLambda1se2NF))^2)
+# SS2NFopt <- sum((cdaData$z_cda_theta_mle - predict(mod2NF, data.matrix(cbind(cdaData[,22:29], sites[,2:20], cdaData[,c(1:4, 11, 12)])), s = optLambda2NF))^2)
+
+SS11p <- sum((cdaData$z_cda_theta_mle - predict(mod11, data.matrix(cbind(cdaData[,c(16:19, 22:29)], sites[,2:20], cdaData[,c(1:4, 11, 12)])), s = optLambda11se))^2)
+SS11popt <- sum((cdaData$z_cda_theta_mle - predict(mod11, data.matrix(cbind(cdaData[,c(16:19, 22:29)], sites[,2:20], cdaData[,c(1:4, 11, 12)])), s = optLambda11))^2)
+SS1NFp <- sum((cdaData$z_cda_theta_mle - predict(mod1NF, data.matrix(cbind(cdaData[,16:19], sites[,2:20], cdaData[,c(1:4, 11, 12)])), s = optLambda1seNF))^2)
+SS1NFpopt <- sum((cdaData$z_cda_theta_mle - predict(mod1NF, data.matrix(cbind(cdaData[,16:19], sites[,2:20], cdaData[,c(1:4, 11, 12)])), s = optLambdaNF))^2)
+SS2NFp <- sum((cdaData$z_cda_theta_mle - predict(mod2NF, data.matrix(cbind(cdaData[,22:29], sites[,2:20], cdaData[,c(1:4, 11, 12)])), s = optLambda1se2NF))^2)
+SS2NFpopt <- sum((cdaData$z_cda_theta_mle - predict(mod2NF, data.matrix(cbind(cdaData[,22:29], sites[,2:20], cdaData[,c(1:4, 11, 12)])), s = optLambda2NF))^2)
+
+@
+
+
+<<rss, echo = FALSE, fig.cap = "The predicted mean squared error for each of the models considered. ``Opt'' denotes the results from the LASSO penalization that minimized the CVM on the training set. ``1SE'' denotes the results from the strictest LASSO penalization that returned a CVM on the training set within one standard error of the minimum.", fig.height=4>>=
+set.seed(1214123)
+############# CDA #############
+s1 <- sample(1:nrow(cdaData_complete), round(0.8*nrow(cdaData_complete))) # 80 % in training, 20% in testing
+train <- rep(FALSE, nrow(cdaData_complete))
+train[s1] <- TRUE
+test <- cdaData_complete[train == FALSE,]
+train <- cdaData_complete[train == TRUE, ]
+
+m1cv <- cv.glmnet(x = data.matrix(train[,c(16:19, 22:29, 1:4,11,12, 37:55)]), y = data.matrix(train[,56]), family = "gaussian", alpha = 1, standardize = TRUE, intercept = FALSE)
+m1 <- glmnet(x = data.matrix(train[,c(16:19, 22:29, 1:4,11,12, 37:55)]), y = data.matrix(train[,56]), family = "gaussian", alpha = 1, standardize = TRUE, intercept = FALSE)
+SS11 <- sum((test$z_cda_theta_mle - predict(m1, data.matrix(test[,c(16:19, 22:29, 1:4,11,12, 37:55)]), s = m1cv$lambda.1se))^2/length(test$z_cda_theta_mle))
+SS11opt <- sum((test$z_cda_theta_mle - predict(m1, data.matrix(test[,c(16:19, 22:29, 1:4,11,12, 37:55)]), s = m1cv$lambda.min))^2/length(test$z_cda_theta_mle))
+
+m2cv <- cv.glmnet(x = data.matrix(train[,c(16:19, 1:4,11,12, 37:55)]), y = data.matrix(train[,56]), family = "gaussian", alpha = 1, standardize = TRUE, intercept = FALSE)
+m2 <- glmnet(x = data.matrix(train[,c(16:19, 1:4,11,12, 37:55)]), y = data.matrix(train[,56]), family = "gaussian", alpha = 1, standardize = TRUE, intercept = FALSE)
+SS1NF <- sum((test$z_cda_theta_mle - predict(m2, data.matrix(test[,c(16:19, 1:4,11,12, 37:55)]), s = m2cv$lambda.1se))^2/length(test$z_cda_theta_mle))
+SS1NFopt <- sum((test$z_cda_theta_mle - predict(m2, data.matrix(test[,c(16:19, 1:4,11,12, 37:55)]), s = m2cv$lambda.min))^2/length(test$z_cda_theta_mle))
+
+m3cv <- cv.glmnet(x = data.matrix(train[,c(22:29, 1:4,11,12, 37:55)]), y = data.matrix(train[,56]), family = "gaussian", alpha = 1, standardize = TRUE, intercept = FALSE)
+m3 <- glmnet(x = data.matrix(train[,c(22:29, 1:4,11,12,37:55)]), y = data.matrix(train[,56]), family = "gaussian", alpha = 1, standardize = TRUE, intercept = FALSE)
+SS2NF <- sum((test$z_cda_theta_mle - predict(m3, data.matrix(test[,c(22:29, 1:4,11,12,37:55)]), s = m2cv$lambda.1se))^2/length(test$z_cda_theta_mle))
+SS2NFopt <- sum((test$z_cda_theta_mle - predict(m3, data.matrix(test[,c(22:29, 1:4,11,12,37:55)]), s = m2cv$lambda.min))^2/length(test$z_cda_theta_mle))
+
+# Residual Sum of Squares (CDA)
+#sum((test$Apps - predict(m1, newdata = test))^2)/length(test$Apps)
+#SSres <- sum(test$z_ppvt_theta_mle - predict(mod1FE, newdata = test[]))
+#SSres2 <- sum(mod1FE.traj$residuals^2)
+
+mod2FE <- lm(train$z_cda_theta_mle ~ data.matrix(train[,c(16:19,1:4,11,12,37:55)]))
+mod2FE.traj <- lm(train$z_cda_theta_mle ~ data.matrix(train[,c(22:29,1:4,11,12,37:55)]))
+SSres3 <- mean((test$z_cda_theta_mle - predict(mod2FE, newdata = test[,c(16:19, 1:4,11,12, 37:55)]))^2) 
+SSres4 <- mean((test$z_cda_theta_mle - predict(mod2FE.traj, newdata = test[,c(22:29,1:4,11,12,37:55)]))^2)
+
+
+############# PPVT #############
+s2 <- sample(1:nrow(ppvtData_complete), round(0.8*nrow(ppvtData_complete))) # 80 % in training, 20% in testing
+train <- NULL
+train <- rep(FALSE, nrow(ppvtData_complete))
+train[s2] <- TRUE
+test <- ppvtData_complete[train == FALSE,]
+train <- ppvtData_complete[train == TRUE, ]
+
+m1cv <- cv.glmnet(x = data.matrix(train[,c(16:19, 22:29, 1:4,11,12)]), y = data.matrix(train[,56]), family = "gaussian", alpha = 1, standardize = TRUE, intercept = FALSE)
+m1 <- glmnet(x = data.matrix(train[,c(16:19, 22:29, 1:4,11,12)]), y = data.matrix(train[,56]), family = "gaussian", alpha = 1, standardize = TRUE, intercept = FALSE)
+SS11p <- sum((test$z_ppvt_theta_mle - predict(m1, data.matrix(test[,c(16:19, 22:29, 1:4,11,12)]), s = m1cv$lambda.1se))^2/length(test$z_ppvt_theta_mle))
+SS11popt <- sum((test$z_ppvt_theta_mle - predict(m1, data.matrix(test[,c(16:19, 22:29, 1:4,11,12)]), s = m1cv$lambda.min))^2/length(test$z_ppvt_theta_mle))
+
+m2cv <- cv.glmnet(x = data.matrix(train[,c(16:19, 1:4,11,12)]), y = data.matrix(train[,56]), family = "gaussian", alpha = 1, standardize = TRUE, intercept = FALSE)
+m2 <- glmnet(x = data.matrix(train[,c(16:19, 1:4,11,12)]), y = data.matrix(train[,56]), family = "gaussian", alpha = 1, standardize = TRUE, intercept = FALSE)
+SS1NFp <- sum((test$z_ppvt_theta_mle - predict(m2, data.matrix(test[,c(16:19, 1:4,11,12)]), s = m2cv$lambda.1se))^2/length(test$z_ppvt_theta_mle))
+SS1NFpopt <- sum((test$z_ppvt_theta_mle - predict(m2, data.matrix(test[,c(16:19, 1:4,11,12)]), s = m2cv$lambda.min))^2/length(test$z_ppvt_theta_mle))
+
+m3cv <- cv.glmnet(x = data.matrix(train[,c(22:29, 1:4,11,12)]), y = data.matrix(train[,56]), family = "gaussian", alpha = 1, standardize = TRUE, intercept = FALSE)
+m3 <- glmnet(x = data.matrix(train[,c(22:29, 1:4,11,12)]), y = data.matrix(train[,56]), family = "gaussian", alpha = 1, standardize = TRUE, intercept = FALSE)
+SS2NFp <- sum((test$z_ppvt_theta_mle - predict(m3, data.matrix(test[,c(22:29, 1:4,11,12)]), s = m2cv$lambda.1se))^2/length(test$z_ppvt_theta_mle))
+SS2NFpopt <- sum((test$z_ppvt_theta_mle - predict(m3, data.matrix(test[,c(22:29, 1:4,11,12)]), s = m2cv$lambda.min))^2/length(test$z_ppvt_theta_mle))
+
+# Residual Sum of Squares (PPVT)
+
+mod2FEp <- lm(train$z_ppvt_theta_mle ~ data.matrix(train[,c(16:19,1:4,11,12,37:55)]))
+mod2FEp.traj <- lm(train$z_ppvt_theta_mle ~ data.matrix(train[,c(22:29,1:4,11,12,37:55)]))
+SSres3p <- mean((test$z_ppvt_theta_mle - predict(mod2FEp, newdata = test[,c(16:19, 1:4,11,12, 37:55)]))^2) 
+SSres4p <- mean((test$z_ppvt_theta_mle - predict(mod2FEp.traj, newdata = test[,c(22:29,1:4,11,12,37:55)]))^2)
+
+# SSres3p <- sum(mod2FEp$residuals^2)
+# SSres4p <- sum(mod2FEp.traj$residuals^2)
+
+
+par(mfrow = c(1,2))
+plot(c(SS1NF, SS2NF), pch = 2, axes = FALSE, sub = "CDA: Comparison of Predicted Mean Squared Error", xlab = "Enrollment Status", ylab = "Predicted Mean Squared Error", xlim = c(0.75,2.25), ylim = c(SS2NFopt - 0.05, SSres4 + 0.1), cex.sub =0.6, cex.lab = 0.75)
+axis(1, at = c(1,2), label = c("Current", "Trajectory"), cex.axis = 0.6)
+axis(2, las = 1, cex.axis = 0.6)
+points(c(SSres3, SSres4), pch = 4, cex = 1)
+points(c(SS1NFopt, SS2NFopt), pch = 6, cex = 1)
+points(c(SS11, SS11), pch = 8, cex = 1, col = 'gray')
+points(c(SS11opt, SS11opt), pch = 10, cex = 1, col = 'gray')
+#legend('right', legend = c("LASSO (Extended)", "LASSO", "OLS"), pch = c(4,6,2), cex = 0.6)
+
+plot(c(SS1NFp, SS2NFp), pch = 2, axes = FALSE, sub = "PPVT: Comparison of Predicted Mean Squared Error", xlab = "Enrollment Status", ylab = "Predicted Mean Squared Error", xlim = c(0.75,2.25), ylim = c(SS2NFpopt-0.05, SSres4p+0.05), cex.sub =0.6, cex.lab = 0.75)
+axis(1, at = c(1,2), label = c("Current", "Trajectory"), cex.axis = 0.6)
+axis(2, las = 1, cex.axis = 0.6)
+points(c(SSres3p, SSres4p), pch = 4, cex = 1)
+points(c(SS1NFpopt, SS2NFpopt), pch = 6, cex = 1)
+points(c(SS11p, SS11p), pch = 8, cex = 1, col = 'gray')
+points(c(SS11popt, SS11popt), pch = 10, cex = 1, col = 'gray')
+
+legend('center', legend = c("OLS", "LASSO (Opt)", "LASSO (1SE)", "LASSO* (Opt)", "LASSO* (1SE)"), pch = c(4,6,2,10,8) , col = c(rep('black',3),rep('gray',2)) , cex = 0.6)
+@
+
+
+\subsection{Summary}
+
+To briefly summarize, in this setting, the LASSO regression primarily functioned as a manner of decreasing the variance of the estimator. As the subset of covariates had already been chosen to be rather selective, variable selection by way of penalization was rather unnecessary. This is not to say that covariates were not dropped. In all of the models the coefficient corresponding to whether the student was the first-born child was dropped to zero in the strictest penalization. Decreased estimator variability, in and of itself, is desirable for a variety of reasons including the avoidance of overfitting. As such, LASSO in this application setting was still a valuable exercise as it successfully produced estimators that performed better when faced with new data.
+
+Through a content focused lens, LASSO points to a rather stable association between enrollment in private education and higher cognitive outcomes as measured by PPVT and CDA scores. Beginning with the uni-directional correlations between current enrollment status and student enrollment trajectories and continuing through each of the models, the theme of a desirable private school education and its association with higher scores emerges. Though both analyses have been completed in a strictly exploratory way, the results certainly warrant further investigation. 
+
+%\begin{quote}
+%``What can, however, be said with some confidence on the basis of the results is that, even if public institutions do not themselves cause students enrolled therein to do worse than children in private preschools and schools, they certainly do not succeed in levelling out social disadvantage: children in private educational institutions, who come from relatively better-off socio-economic backgrounds, continue to do better in test scores by a large magnitude.''
+%\end{quote}
+
+%Further, the original policy questions of interest continue to be answered in the same way:
+
+%\begin{quote}
+% ``Two policy issues are currently prominent in discussion of educational policy, one particularly relevant for India and the other of wider application. The first is the role of the private relative to the public sector in education. The second is a literature referred to in the introduction, mostly from OECD countries but also with increasing evidence from developing countries, arguing that many of the crucial differences that affect young adults in both their learning and labour market outcomes are due to their early learning history.''
+% %\end{quote}
+% 
+% Evidence is provided (just as before) that students with exposure to private education do outperform their counterparts without exposure to private education. Of course, this cannot be seen as a causal relationship, but the association is strong in each of the models run in this paper as well as in the original research paper.
+% 
+% Second, parental background consistently entered the models developed in this paper as highly associated factors with higher test scores. When the parents are educated or have a higher wealth index or income, students tend to do better in school, regardless of public or private enrollment status.

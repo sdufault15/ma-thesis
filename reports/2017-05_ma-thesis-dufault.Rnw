@@ -1,0 +1,157 @@
+\documentclass[12pt]{article}
+\usepackage[margin=1in, includefoot, heightrounded]{geometry}
+\usepackage[margin=1cm]{caption}
+\usepackage{amsmath, amssymb}
+\usepackage[utf8]{inputenc}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{placeins}
+\usepackage{graphicx}
+\usepackage{mdframed}
+\usepackage{url}
+\usepackage{multirow}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{tablefootnote}
+\usepackage{threeparttable}
+\usepackage{afterpage}
+\newcommand\independent{\protect\mathpalette{\protect\independenT}{\perp}}
+\def\independenT#1#2{\mathrel{\rlap{$#1#2$}\mkern2mu{#1#2}}}
+%\usepackage{biblatex}
+
+\newcommand\blankpage{%
+    \null
+    \thispagestyle{empty}%
+    \addtocounter{page}{-1}%
+    \newpage}
+
+\usepackage[font={scriptsize}, justification=justified]{caption}
+%\usepackage{cite}
+
+\newcolumntype{P}[1]{>{\centering\arraybackslash}p{#1}}
+
+\begin{document}
+
+\begin{titlepage}
+\centering
+{\large LASSO for Public Health Data:\\ \vspace{0.5cm} \large An Examination of Prevalent Variable Selection Methods \\ \vspace{0.5cm} and Demonstration of LASSO in R}
+\vspace{1cm}
+
+{by \\ \vspace{0.5cm} Suzanne M Dufault}
+\vspace{2cm}
+
+{A thesis submitted in partial satisfaction \\ \vspace{0.5cm} of the requirements for the degree of}
+\vspace{0.5cm}
+
+{Master of Arts}
+\vspace{0.5cm}
+
+{in}
+\vspace{0.5cm}
+
+{Biostatistics}
+\vspace{0.5cm}
+
+{in the Graduate Division of the}
+\vspace{0.5cm}
+
+{University of California, Berkeley}
+\vspace{2cm}
+
+{Committee in charge:}
+\vspace{0.5cm}
+
+{Professor Nicholas Jewell \\ Professor Sandrine Dudoit \\ Professor Lia Fernald}
+\vspace{2cm}
+
+
+	\vfill
+
+% Bottom of the page
+{May 12, 2017}
+\end{titlepage}
+
+\blankpage
+
+<<include = FALSE>>=
+# CALLING IN NECESSARY PACKAGES
+library(foreign)
+library(haven)
+library(plyr)
+library(xtable)
+d <- read.csv("/Users/suzannedufault/Documents/Berkeley/Research/YoungLivesPaper/singh-final-data")
+@
+
+<<r global_options, include=FALSE>>=
+knitr::opts_chunk$set(fig.width=7, fig.height=5, fig.path='graphs/',
+                       warning=FALSE, message=FALSE, size = "scriptsize", fig.align = 'c')
+opts_knit$set(self.contained=FALSE)
+@
+
+\pagenumbering{roman}
+\setcounter{page}{1}
+
+\tableofcontents
+\pagebreak
+
+
+\section*{Dedication}\addcontentsline{toc}{section}{Dedication}
+\bigskip
+
+\hspace{6mm}I would like to express my gratitude to Dr.\ Abhijeet Singh, a leader in transparency and collaboration. Thank you for graciously sharing all of the well-organized STATA code necessary for the analysis completed in this paper. I hope the field continues to move forward in this productive manner and will personally do all I can to contribute to this end. \bigskip
+
+I would also like to thank my committee members. Thank you, Professor Fernald, for the opportunity to explore this topic. Thank you, Professor Dudoit, for further discussion on LASSO and parametric modeling in general. Thank you, Professor Jewell, for ongoing advisement. 
+\bigskip
+
+Finally, I would like to thank my family. Your unwavering support means everything to me.
+
+
+\pagebreak
+\section*{Acknowledgements} \addcontentsline{toc}{section}{Acknowledgements}
+\bigskip
+
+\hspace{5mm} The data used in this publication come from Young Lives, a 15-year study of the changing nature of childhood poverty in Ethiopia, India, Peru and Vietnam (YoungLives.org.uk). Young Lives is funded by UK aid from the Department for International Development (DFID). The views expressed here are those of the author. They are not necessarily those of Young Lives, the University of Oxford, DFID or other funders.
+
+\pagebreak
+\pagenumbering{arabic}
+\setcounter{page}{1}
+
+<<introduction, child='00_introduction.Rnw'>>=
+@
+
+<<lit_review, child='01_lit-review.Rnw'>>=
+@
+
+<<methodreview, child = '02_method-review.Rnw'>>=
+@
+
+%\section{Shortcomings of Least Squares \label{LSIssues}}
+<<lasso, child='03_lasso.Rnw'>>=
+@
+
+% <<tutorial, child='04_tutorial.Rnw'>>=
+% @
+
+<<discussion, child = '05_discussion.Rnw'>>=
+@
+\pagebreak
+
+
+%\bibliography{references}
+%\bibliographystyle{ieeetr}
+<<ref, child = '06_references.Rnw'>>=
+@
+\pagebreak
+% <<rappendix, child = '07_r-appendix.Rnw'>>=
+% @
+
+%<<bib, child = 'Bib.Rnw'>>=
+%@
+
+%\section{NOTES:}
+%bolasso
+
+
+%\section{Citations}
+%Sauer B, Brookhart MA, Roy JA, et al. Covariate Selection. In: Velentgas P, Dreyer NA, Nourjah P, et al., editors. Developing a Protocol for Observational Comparative Effectiveness Research: A User's Guide. Rockville (MD): Agency for Healthcare Research and Quality (US); 2013 Jan. Chapter 7. Available from: \url{https://www.ncbi.nlm.nih.gov/books/NBK126194/}
+\end{document}

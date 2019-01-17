@@ -1,0 +1,78 @@
+\section{Literature Review \label{YL}}
+
+\subsection{Motivation}
+The 2009 paper \textit{Variable Selection: Current Practice in Epidemiological Studies} (Walter and Tiemeier 2009) provides an analysis of 300 articles found in four of the most popular epidemiological journals: \textit{American Journal of Epidemiology}, \textit{Epidemiology}, \textit{European Journal of Epidemiology}, and \textit{International Journal of Epidemiology}. Recognizing that variable selection is one of the most controversial parts of research, the authors were interested in gaining a sense of what methods were being used and accepted and whether methods such as shrinkage and penalization, referred to as ``modern methods'' by the authors, had been incorporated into research.
+
+%\begin{table}
+%\centerline{\includegraphics[width = 6in]{"/Users/suzannedufault/Box Sync/Academics/Spring2017/Thesis/vSelectOriginal".png}}
+%\caption{A reproduction of the table ``Variable selection methods used in major epidemiologic journals in 2008'' from \textit{Current Practice in Epidemiological Studies}.}
+%\label{tab:vSelectOriginal}
+%\end{table}
+
+% \begin{table}[!ht]
+% \centering
+% \begin{tabular}{ p{0.5\textwidth} | P{0.05\textwidth} p{0.05\textwidth} |p{0.05\textwidth} P{0.05\textwidth} | p{0.05\textwidth}  p{0.05\textwidth} | p{0.05\textwidth}  p{0.05\textwidth} }
+% \textbf{Selection Technique} & \multicolumn{2}{c}{\multirow{2}{*}{\parbox{0.1\textwidth}{\textbf{American Journal of Epidemiology}}}}  & \multicolumn{2}{c}{\textbf{Epidemiology}} & \multicolumn{2}{c}{\multirow{2}{*}{\parbox{0.1\textwidth}{\textbf{European Journal of \break Epidemiology}}}} & \multicolumn{2}{c}{\multirow{2}{*}{\parbox{0.1\textwidth}{\textbf{International Journal of \break Epidemiology}}}} \\
+% & n & \% & n & \% & n & \% & n & \% \\
+% \hline
+% \hline
+% Prior knowledge & 50 & 29 & 11 & 28 & 13 & 30 & 9 & 20 \\
+% Effect estimate change & 31 & 18 & 6 & 15 & 3 & 7 & 4 & 9 \\
+% Stepwise selection & 27 & 16 & 9 & 23 & 10 & 23 & 13 & 29 \\
+% Modern methods (shrinkage, penalized regression) & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0\\
+% Other (e.g., principal components, propensity scores) & 2 & 1 & 4 & 10 & 1 & 2 & 2 & 4\\
+% Not described & 61 & 36 & 10 & 25 & 17 & 39 & 17 & 38 \\
+% \hline
+% Total & 171 & & 40 & & 44 & & 45 \\
+% \end{tabular}
+% \caption{A reproduction of the table ``Variable selection methods used in major epidemiologic journals in 2008'' from \textit{Current practice in epidemiological studies}.}
+% \label{tab:vSelectOriginal}
+% \end{table}
+
+While their investigation produced a wealth of insight into the current and acceptable practices of modern research, a few of their findings merit particular attention. The authors found that 35\% of all articles surveyed made no mention of their variable selection techniques. This proportion includes papers that stated their variables were selected via \textit{a priori} knowledge or information but provided no explicit citations to the source of the knowledge. While this lack of information is concerning for the sake of reproducibility and transparency, it is not a sign that the research in these articles is inherently flawed. Instead, it demonstrates the importance of reflecting on why journals do not prioritize and require richer detail for this consequential aspect of the analysis.
+
+An additional 27.667\% of articles sampled completed variable selection based on previous literature and cited prior knowledge. While this has generally been recognized as a reasonable practice (Sauer et al. 2013), it certainly has its flaws. In a theoretical sense, concerns about scientific findings that may actually be null should give at least slight pause to the unquestioning inclusion of such variables (Ioannadis 2005). Practically speaking, tracing these citations back to the original study in which the variable was proven to be associated with a particular outcome of interest often requires a search through several generations of publications before the original source is found. Further, even rigorously selecting variables based on prior knowledge may still leave a researcher with a large and unwieldy subset, requiring an additional method of screening for variable importance.
+
+Finally, not a single article in the sampled set of 300 was found to make use of shrinkage or penalization methods. While I will explore further the attributes of such a method, this was quite a shock to the original authors given the support such methods had received from methodologists (Greenland 2008; Sauer et al. 2013). Pairing this information with the finding that 34\% of all papers still used the highly criticized methods of step-wise selection and change-in-estimate, it is clear that methods that have dominated the literature in the past continue to dominate in the present, regardless of their catalogued benefits and failures. 
+
+\subsection{Recent Review of Young Lives Journal Articles}
+In April of 2016, I completed a literature search on PubMed and Google Scholar searching for a more recent analysis of method prevalence in epidemiologic literature. Given that the 2009 paper is nearly a decade old, it was hypothesized that there may have been a shift towards shrinkage and penalization methods given the increasing ease of implementation provided by user friendly statistical packages. I was unable to find a comparable comprehensive review. 
+
+In light of this, a considerably smaller review was completed, narrowed to the scope of the journal articles produced regarding the YL study. By June 2016, there were 145 published journal articles referenced on the YL website. Conditioning the sample based on journal articles with any transformation of the cognitive measures of the Peabody Picture Vocabulary Test (PPVT) or Cognitive Development Assessment (CDA) as a primary outcome of interest, returned a sample of 19 eligible papers. These outcomes were chosen to ensure similarity in motivation as well as restrict the sample size of eligible papers. The cognitive measures are well described in other resources (Singh 2014). Table \ref{tab:vSelect} summarizes the variable selection methods found in these 19 papers. %The analytic methods of interest were also catalogued. Because of the overwhelming homogeneity in methods as well as my interest in the application of regression methods, the categorization was coarsened to two categories, \textit{Regression} and \textit{Other}. Again, it is important to consider that different questions may require different methods. As such, Table \ref{tab:model} should be read simply as a cataloguing, not an analysis of which methods would or would not have been appropriate for each question of interest.
+
+\begin{table}[!ht]
+\centering
+\begin{tabular}{ p{0.55\textwidth}  P{0.1\textwidth}  P{0.15\textwidth} }
+\toprule
+\textbf{Selection Technique} & $\mathbf{n}$  & \textbf{Percent } \\
+\midrule
+Prior knowledge & 9 & 47.37\% \\
+Effect estimate change & 2 & 10.53\% \\
+Stepwise selection & 0 & 0 \\
+Modern methods (shrinkage, penalized regression) & 0 & 0\\
+Other (e.g., principal components, propensity scores) & 3 & 15.79\% \\
+Not described & 5 & 26.32\% \\
+\midrule
+Total & 19 & 100\% \\
+\bottomrule
+\end{tabular}
+\caption{A summary of variable selection techniques used in Young Lives journal articles regarding quantitative measure of cognitive outcomes as the outcome of interest.}
+\label{tab:vSelect}
+\end{table}
+
+% \begin{table}[!ht]
+% \centering
+% \begin{tabular}{ p{0.55\textwidth} | P{0.1\textwidth} | P{0.15\textwidth} }
+% \textbf{Model Method} & $\mathbf{n}$ & \textbf{Percent} \\
+% \hline
+% \hline
+% Regression (fixed effects, random effects, logistic,  etc.) & 14 & 73.68\% \\
+% Other & 5 & 26.32\% \\
+% \hline
+% Total & 19 & 100\% \\ 
+% \end{tabular}
+% \caption{A summary of modeling techniques used in Young Lives journal articles regarding quantitative measure of cognitive outcomes as the outcome of interest.}
+% \label{tab:model}
+% \end{table}
+
+Similar to the results of the 2009 paper, Table \ref{tab:vSelect} shows approximately 47\% of papers in this sample used prior knowledge for variable selection, 26\% of papers did not describe the variable selection process at all and none of the sampled papers used shrinkage or penalization methods for variable selection. Additionally, there was considerable homogeneity in analysis techniques. 73\% of papers used un-penalized parametric regression models to estimate their parameters of interest. While the prevalence of the technique does not confirm or deny its efficiency in answering research questions, it is clear that researchers and journals are generally comfortable using and interpreting regression models. As such, the rest of this paper will focus on variable selection within the framework of linear regression modeling. The value of the shared understanding of regression will be leveraged in Section \ref{lasso} when introducing LASSO.

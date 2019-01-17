@@ -1,0 +1,63 @@
+\section*{References} \addcontentsline{toc}{section}{References}
+
+\noindent Angrist, J.D. and Pischke, J. (2008), \textit{Mostly Harmless Econometrics: An Empiricist's Companion}, Princenton University Press.
+\vspace{3mm}
+
+\noindent Christensen, R.A. (1987), \textit{Plane Answers to Complex Questions: The Theory of Linear Models}, Springer-Verlag New York Inc., New York, NY. 
+\vspace{3mm}
+
+\noindent Davis-Kean, P.E. (2005), ``The Influence of Parent Education and Family Income on Child
+Achievement: The Indirect Role of Parental Expectations and the Home Environment,'' \textit{Journal of Family Psychology}, (Vol. 19, No. 2), 294-304.
+\vspace{3mm}
+
+\noindent Dziak, J., Li, R. and Collins, L. (2005) ``Critical Review and Comparison of Variable Selection Procedures for Linear Regression,'' Technical Report, Methodology Center, Penn State University.
+\vspace{3mm}
+
+\noindent Greenland, S. (2008), ``Invited Commentary: Variable Selection versus Shrinkage in the
+Control of Multiple Confounders,'' \textit{American Journal of Epidemiology}, (Vol. 167, No. 5), 523-531.
+\vspace{3mm}
+
+\noindent Hastie, T., Tibshirani, R., and Friedman, J. (2001), \textit{The Elements of Statistical Learning}, Springer Series in Statistics, Springer New York Inc., New York, NY.
+\vspace{3mm}
+
+\noindent Ioannidis, J. P. A., (2005), ``Why Most Published Research Findings are False,'' \textit{Plos Medicine}, (Vol. 2, No. 8).
+\vspace{3mm}
+
+\noindent Lee, P. H. (2014), ``Is a Cutoff of 10\% Appropriate for the Change-in-Estimate Criterion of Confounder Identification?'' \textit{Journal of Epidemiology}, (Vol.24, No.2), 161–167.
+\vspace{3mm}
+
+\noindent Liu, H., Yu., B., et. al. (2013), ``Asymptotic Properties of LASSO+mls and LASSO+ridge in Sparse High-Dimensional Linear Regression,'' \textit{Electronic Jounal of Statistics}, (Vol. 7), 3124-3169.
+\vspace{3mm}
+
+\noindent Logo, D. L. and Drazen, J. M. (2016), ``Data Sharing,'' \textit{New England Journal of Medicine}, (Vol 374, No. 3), 276-277.
+\vspace{3mm}
+
+\noindent Robins, J. M. (1987), ``A Graphical Approach to the Identification and Estimation of Causal Parameters in Mortality Studies with Sustained Exposure Periods,'' \textit{Journal of Chronic Disease} (Vol. 40, Supplement), 2:139s-161s.
+\vspace{3mm}
+
+\noindent Robins, J. M. and Greenland, S. (1986). ``The Role of Model Selection in Causal Inference from Nonexperimental Data,'' \textit{American Journal of Epidemiology}. (Vol. 123, No. 3), 392-402.
+\vspace{3mm}
+
+\noindent Rosenbaum, P. R., and Rubin, D. B. (1983) ``The Central Role of the Propensity Score in Observational Studies for Causal Effects,'' \textit{Biometrika}, (Vol. 70, No. 1), 41-55.
+\vspace{3mm}
+
+\noindent Sauer, B., Brookhart, M.A. and Roy, J.A., et al. (2013), ``Covariate Selection,'' \textit{Developing a Protocol for Observation Comparative Effectiveness Research: A User's Guide}, ed. Velentgas P., Dreyer N.A., Nourja P., et al., Rockville, MD.
+\vspace{3mm}
+
+\noindent Schisterman E. F., Cole S. R., and Platt, R. W. (2009), ``Overadjustment Bias and Unnecessary Adjustment in Epidemiologic Studies,'' \textit{Epidemiology} (Vol. 20, No. 4), Cambridge, MA, 488-495.
+\vspace{3mm}
+
+\noindent Singh, A. (2014) ``Test Score Gaps between Private and Government Sector Students at School Entry Age in India,'' Oxford Review of Education, (Vol. 40, No. 1), 30-49.
+\vspace{3mm}
+
+\noindent St{\"u}rmer, T., Joshi, M., Glynn, R. J., Avorn, J., Rothman, K. J. and Schneeweiss, S. (2006) ``A Review of the Application of Propensity Score Methods Yielded Increasing Use, Advantages in Specific Settings, but not Substantially Different Estimates Compared with Conventional Multivariable Methods,'' \textit{Journal of Clinical Epidemiology}, (Vol. 59, No. 5), 437-47.
+\vspace{3mm}
+
+\noindent Walter, S. and Tiemeier, H. (2009), ``Variable Selection: Current Practice in Epidemiological Studies," \textit{European Journal of Epidemiology} (Vol. 24, No. 12), 733-736.
+\vspace{3mm}
+
+\noindent Wasserman, L. (2010), \textit{All of Statistics: A Concise Course in Statistical Inference}, Springer Publishing Company Incorporated.
+\vspace{3mm}
+
+\noindent Wasserstein, R. L., and Lazar, N. A. (2016), ``The ASA's Statment on P-Values: Context, Process, and Purpose,'' \textit{The American Statistician}, (Volumne 70, No. 2), 129-133.
+\vspace{3mm}

@@ -1,0 +1,65 @@
+\section{LASSO: Improvements on Least Squares \label{lasso}}
+\subsection{Least Squares: Definition}
+Once the subset of $p$ observed variables of interest have been selected and the $n$ observations corresponding to these variables have been organized into a matrix $X_n \in \mathbb{R}^{n\times p}$, linear regression is one of the most popular techniques for estimating the parameter(s) of interest, typically the association of the outcome $Y$ with the variables in $X$. Simple linear regression refers to models of the form expressed in Equation \ref{lin}, where the outcome $Y$ can be expressed as some linear combination of the $p$ observed variables in $X$. 
+
+\begin{equation} \label{lin}
+Y = \beta_0 + \beta_1 X_1 + \beta_2 X_2 + \ldots + \beta_p X_p + \epsilon = X\beta + \epsilon
+\end{equation}
+
+Estimation of the coefficients $\beta$ in this model can take many forms, though the most common is through least squares minimization. Estimation of $\beta$ via least squares requires the minimization of the quantity presented in Equation \ref{LS}. 
+
+\begin{equation} \label{LS}
+\hat{\beta}_{LS} = \arg \min\limits_{\beta \in \mathbb{R}^p} ||Y_n - X_n\beta||_2^2
+\end{equation}
+
+Solving the minimization problem in Equation \ref{LS} results in the estimator, defined in matrix form, in Equation \ref{LSest}.
+
+\begin{equation}\label{LSest}
+\hat{\beta}_{LS} = (X_n^TX_n)^{-1}X_n^TY_n
+\end{equation}
+
+As mentioned in Section \ref{ExMethods}, there are many criteria by which to evaluate the optimality of an estimator. Though many formulations of the least squares criteria can be found in textbooks (Wasserman 2004; Christensen 2011) and across varying fields (Angrist and Pischke 2008), the results are the same. Least squares estimation provides a reliable, and by some criteria optimal, estimate $\hat{\beta}_{LS}$ of $\beta$ when a series of assumptions are met. First, $\hat{\beta}_{LS}$ is unbiased assuming $E[Y|X] = X\beta$ is linear. The second assumption is that the variance of $Y$ at each level of $X$ is constant $\sigma^2$, alternatively referred to as homoskedasticity. These two assumptions are all that is necessary to ascertain that the $\hat{\beta}_{LS}$ is the best linear unbiased estimator (BLUE), a desirable optimality among all linear unbiased estimators. A final assumption that $Y$ is normally distributed with distribution $N(X\beta, \sigma^2)$, connects the least squares estimates $\hat{\beta}_{LS}$ to those found via maximum likelihood estimation $\hat{\beta}_{MLE}$. The efficient estimation of the $\hat{\beta}$s relies on the independent and identical generation of the pairs $(X,Y)$ or the conditional independence of $Y$ given $X$ (Hastie et al. 2008).    
+
+When all of these assumptions are met and a least squares regression model is used for data analysis, considerable resources have demonstrated the ease of understanding the coefficients $\hat{\beta}_{LS}$. In practice, the implementation of the method in STATA, R and SAS packages that are very user friendly has further removed any computational barrier to the method. With respect to the ease of interpretation, the visualization of linear relationships when considering a change in one of the variables $X_k$ for $k = 1, 2, \ldots$ is very simple. Finally, given the distributional assumptions, confidence intervals and p-values may be estimated for the coefficients $\hat{\beta}_{LS}$. While the unreliability and flaws of p-values to determine statistically significant discoveries have been well documented, these remain a primary source of interpretation and discussion for statistical analyses (Wasserstein and Lazar 2016).   
+
+\subsection{Least Squares: Concerns for Public Health Data} \label{LSiss}
+The benefits of least squares estimators are nearly indisputable when all the necessary conditions are met. However, in public health data, this may rarely be the case. First, reliable estimation of $\hat{\beta}_{LS}$ relies on the invertibility (i.e. nonsingularity) of the matrix $X_n^TX_n$. This matrix becomes singular if the columns of $X_n$, i.e. the variables, are not linearly independent, which results in a failed attempt at a unique solution. In public health data, high collinearity is a considerable problem. For example, in some regions age may be highly collinear with years of education for a student population. Given that some students will start school earlier or later than their peers, the two variables summarizing age and years of school, will not be perfectly linearly dependent, but will nonetheless display a high level of collinearity. This high collinearity produces a $X_n^TX_n$ matrix that is near-singular, resulting in highly variable and unreliable $\hat{\beta}_{LS}$ estimates.  
+
+Further, the subset of variables to include in $X_n$ must be pre-determined by an appropriate method. As previously discussed, a primary concern with having too many covariates in a linear regression model is overfitting and modeling the noise that is specific to the dataset at hand rather than the true signal. Once included in the regression model, the $k$-th coefficient for ($k = 1, \ldots, p$) $\hat{\beta}_{LS, k}$ summarizes the partial association of $X_k$ with the outcome, controlling for the other variables in the model. As such, coefficient size and interpretation are entirely dependent on the variables included or excluded from the specified model (Hastie et al. 2008). In settings where regressions are performed in an exploratory manner, this distinction is key.
+
+\subsection{LASSO: Definition}
+LASSO or \textit{least absolute shrinkage and selection operator} was proposed by Tibshirani in 1996 as a method to improve model fitting within the context of least squares estimation. As mentioned in Section \ref{ExMethods}, MSE can be minimized by minimizing the estimator bias or variance. Least squares estimation is unbiased under the assumptions previously discussed, and as such, control of the MSE relies entirely on the variance of the estimator. The variance of the estimator was also previously shown to rely heavily on the matrix $X_n^TX_n$ and to be threatened by collinearity as well as the inclusion of a large number of variables $p$ in $X_n$. By allowing a small amount of bias into the estimation of the regression coefficients, penalized regression methods including LASSO aim to combat the high variability of traditional least squares regression estimates. An advantage LASSO has over similar penalized regression methods including ridge regression and elastic net is that LASSO simultaneously completes variable selection among the $p$ variables included in $X_n$. This process results in a smaller subset of coefficients.   
+
+The least squares formulation of LASSO as seen in Equation 6 is very similar to that of traditional linear least squares with a small modification. The additional term, making use of the $\ell_1$ norm, $\lambda ||\beta||_1$, \textit{penalizes} the total size of the coefficients, where $\lambda$ is the penalty applied to the total absolute value of the size of the coefficients. This is what controls the bias-variance tradeoff. As lambda increases, the coefficient estimates increase in bias by being forced to shrink towards zero. This, in turn, results in a less variable estimates $E[Y|X]$. When the penalty is large enough, continuous covariate selection occurs as coefficients drop directly to zero. The greater the penalization, the fewer predictors will be retained in the regression model and the prediction of $E[Y|X]$ wil continue to decrease in variability.
+
+\begin{equation} \label{LassoEq}
+\hat{\beta}_{LASSO} = \arg \min\limits_{\beta \in \mathbb{R}^p} ||Y_n - X_n\beta||_2^2 + \lambda ||\beta||_1
+\end{equation}
+
+Alternatively, LASSO has been expressed as the optimization problem in Equation \ref{LassoOpt}. These two formulations are equivalent. Given a particular $\lambda$ it is possible to find an $s$ that returns the same coefficient estimates, and vice versa. The parameterization provided in Equation \ref{LassoEq} will be considered for the remainder of this paper. 
+
+\begin{multline} \label{LassoOpt}  \\
+\hat{\beta}_{LASSO} = \arg \min\limits_{\beta \in \mathbb{R}^p} ||Y_n - X_n\beta||_2^2 \\
+\textnormal{s.t.    } ||\beta||_1 \leq s \\
+\end{multline}
+
+Before exploring the properties of LASSO regression coefficients $\hat{\beta}_{LASSO}$, there are a few considerations that must be made. In order to best complete a fair penalization with LASSO regression, the variables in $X_n$ should be either standardized or measured in the same units. As $\hat{\beta}_{LASSO}$ directly corresponds to the magnitude of the variables, failure to standardize across variables will force the $\ell_1$ norm to reflect variable magnitude rather than meaningful variation. Further, as the intercept is simply a location parameter corresponding to the baseline mean of $Y_n$, its inclusion in the $\ell_1$ norm is typically unnecessary and inefficient. This can be managed in two ways: 1) through centering $Y_n$, or 2) removing $\beta_0$ from the set of penalized coefficients.
+
+The LASSO regression method, and other penalization methods, introduce a tuning parameter $\lambda$ that is typically not known \textit{a priori}. As with any parameter estimation, it is essential that a particular criterion is established as to what constitutes the ``best'' penalty size $\lambda$. While intricate theory surrounds the optimal estimation of the penalty $\lambda$ (Hastie et al. 2015), its estimation is typically completed via cross-validation, where optimality is defined as the $\lambda$ that minimizes the cross validated mean squared prediction error (CVM). Once the optimal $\lambda$ has been found, estimation of $\hat{\beta}_{LASSO}$ is found via cyclical coordinate descent, which, so long as certain ``mild'' conditions are met, allows for convergence to a global optimum. When considering a series of penalties, pathways coordinate descent is used instead, which assists in computational efficiency (Hastie et al. 2015).
+
+LASSO and other shrinkage methods have a number of desirable qualities not shared by traditional least squares. For example, LASSO provides an excellent way of dealing with variables that may be correlated. The following quote from \textit{Elements of Statistical Learning} describes the advantage of shrinkage methods in such situations as are often faced in public health data.
+
+\begin{quote}
+When there are many correlated variables in a linear regression model, their coefficients can become poorly determined and exhibit high variance. A wildly large positive coefficient on one variable can be canceled by a similarly large negative coefficient on its correlated cousin. By imposing a size constraint on the coefficients... this phenomenon is prevented from occurring. (Hastie et al. 2008, pp. 59)
+\end{quote}
+
+Further, various papers have examined the asymptotic behavior of least squares regression models that make use of the variables selected by LASSO regression when the number of covariates is much larger than the number of observations ($p >> n$). These papers have found many desirable traits, such as estimator unbiasedness and convergence as $n$ goes to infinity (Liu and Yu 2013). This is an incredible improvement on least squares linear regression, which relies on the number of covariates preferably being much less than the number of observations.    
+
+\subsection{LASSO: Concerns}
+
+While LASSO improves model fit, it decreases MSE by allowing the coefficient estimates $\hat{\beta}_{LASSO}$ to be biased. This sacrifice may concern researchers who hope to understand dose-response relationships, despite the sign of the coefficient still providing insight into a particular variable's relationship with the outcome. Estimation of confidence intervals proves challenging in that there is no closed form solution. However, work has been done exploring alternative ways and finite sample estimation, often including residual bootstrapping (Liu and Yu 2013; Hastie et al. 2015). 
+
+LASSO may handle collinearity better with respect to improved model fitting and prediction error, but collinearity between theoretically useful variables and nuisance variables is not differentiated in variable selection. As such, LASSO may choose to include the nuisance variable instead of the useful variable with which it displays high collinearity. %While this is certainly a concern when considering LASSO as a variable selection technique, a simple examination of correlation structures may be useful to confirm the proper inclusion of the selected variables. 
+While this may seem particularly problematic, recall the wildly and poorly determined coefficient estimates returned by least squares linear regression in this same setting. A tradeoff seems to be made between unreliable coefficient estimation and more reliable estimation but the potential swapping between a ``useful'' and ``useless'' pair of highly collinear covariates. 
+
+
