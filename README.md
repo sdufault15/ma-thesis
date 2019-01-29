@@ -8,3 +8,5 @@ It contains the following subdirectories:
 * **graphs** contains any generated graphs 
 
 The data is publicly available with permission from [Young Lives](http://younglives.org.uk/content/use-our-data). Feel free to contact me if you would like to know which variables in particular where used from this dataset for the analysis.
+
+To run this on your own computer, you will need to comment out the Tutorial section, which requires access to the YoungLives dataset.
